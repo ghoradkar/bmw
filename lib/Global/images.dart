@@ -1,0 +1,8 @@
+const String logo = "assets/images/biowaste_logo.png";
+const String background='assets/images/biowaste_background.png';
+const String appbar='assets/images/appbar.png';
+const String success='assets/images/done.png';
+const String offline='assets/images/offline.png';
+const String logout='assets/images/logout.png';
+const String update='assets/images/update.png';
+const String dataNotFound='assets/images/data_not_found.png';

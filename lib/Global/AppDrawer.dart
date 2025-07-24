@@ -1,0 +1,192 @@
+import 'package:flutter/material.dart';
+import 'package:mpcb_bio_waste/CBWTF/apiservice.dart';
+import 'package:mpcb_bio_waste/CBWTF_Reception/view_details_after_Scan.dart';
+import 'package:mpcb_bio_waste/Global/size_config.dart';
+import 'package:mpcb_bio_waste/Global/url.dart';
+import 'package:shared_preferences/shared_preferences.dart';
+
+import '../HCF/filter.dart';
+import '../authentication/logout.dart';
+import 'app_routes.dart';
+
+class AppDrawer extends StatefulWidget {
+
+
+  @override
+  State<AppDrawer> createState() => _AppDrawerState();
+}
+
+class _AppDrawerState extends State<AppDrawer> {
+  String username = '';
+  String email = '';
+
+  @override
+  void initState() {
+    super.initState();
+    _loadUserInfo();
+  }
+
+  Future<void> _loadUserInfo() async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    setState(() {
+      username = prefs.getString('userRole') ?? 'Guest';
+      //email = prefs.getString('UserEmail') ?? 'guest@example.com';
+    });
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    SizeConfig().init(context);
+    return Drawer(
+
+      child: Container(
+        
+        decoration:  BoxDecoration( gradient: LinearGradient(
+            colors: [
+              Color.fromRGBO(75, 197, 217, 1),
+              Color.fromRGBO(21, 144, 207, 1)
+            ],
+            begin: FractionalOffset(1.0, 0.0),
+            end: FractionalOffset(1.0, 1.0),
+            stops: [0.0, 1.0],
+            tileMode: TileMode.clamp),),
+        child:Column(
+            crossAxisAlignment:
+            CrossAxisAlignment.start,
+            children: [
+              SizedBox(height: responsiveHeight(100),),
+
+      Center(
+        child: Container(
+          height: 50,
+          width: 50,
+          child: Icon(
+            Icons.person,
+            color: Colors.black54,
+          ),
+          decoration: BoxDecoration(
+              borderRadius: BorderRadius.all(
+                  Radius.circular(10)),
+              border: Border.all(
+                  color: Colors.white),
+              color: Colors.grey.shade400),
+        ),
+      ),
+              SizedBox(height: responsiveHeight(30),),
+
+      Center(
+          child: Text(
+            username == null ? '' : username!,
+            style: TextStyle(color: Colors.white,fontSize: 14),
+          )),
+      SizedBox(
+        height: 40,
+      ),
+      SizedBox(
+        height:
+        400,
+        child: ListView(
+          scrollDirection: Axis.vertical,
+          // Important: Remove any padding from the ListView.
+          padding: EdgeInsets.zero,
+          children: [
+           username== 'HCF User'? ListTile(
+              leading: Icon(
+                Icons.receipt_long,
+                color: Colors.white,
+              ),
+              title: Text(
+                  'HCF Bio Waste Data',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15)),
+              onTap: () {
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>ViewDetails(),
+                  ),
+                );
+                // Update the state of the app.
+                // ...
+              },
+            ):SizedBox(),
+        username=='CBWT Reception User'? ListTile(
+          leading: Icon(
+            Icons.receipt,
+            color: Colors.white,
+          ),
+          title: Text(
+              'View Details',
+              style: TextStyle(
+                  color: Colors.white,
+                  fontSize: 15)),
+          onTap: () {
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) =>ViewDetailsAfterScan(),
+              ),
+            );
+
+            // Update the state of the app.
+            // ...
+          },
+        ):SizedBox(),
+
+        ListTile(
+        leading: Icon(
+        Icons
+            .dashboard_customize_outlined,
+          color: Colors.white,
+        ),
+        title: Text(
+            'ID Card',
+            style: TextStyle(
+                color: Colors.white,
+                fontSize: 15)),
+        onTap: () {
+
+          // Update the state of the app.
+          // ...
+        },
+      ),
+            ListTile(
+              leading: Icon(
+                Icons
+                    .logout,
+                color: Colors.white,
+              ),
+              title: Text(
+                  'Logout',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15)),
+              onTap: () {
+
+                Navigator.of(context).pushNamed(AppRoutes.logout);
+
+                // Update the state of the app.
+                // ...
+              },
+            ),
+            SizedBox(height: responsiveHeight(310),),
+            ListTile(
+
+              title: Text(
+                  'Version $appVersion',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15)),
+              onTap: () {
+
+
+                // Update the state of the app.
+                // ...
+              },
+            ),
+    ]),
+    )])));
+  }
+}
