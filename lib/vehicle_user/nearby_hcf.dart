@@ -99,6 +99,7 @@ class _DiscoverNearbyHCFScreenState extends State<DiscoverNearbyHCFScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('Token') ?? '';
+      var userId = await prefs.getString('UserId')??"";
 
       final body = jsonEncode({
 
@@ -110,7 +111,7 @@ class _DiscoverNearbyHCFScreenState extends State<DiscoverNearbyHCFScreen> {
       });
 
       final response = await http.post(
-        Uri.parse('${baseurl}${CBWTF_MAP}'),
+        Uri.parse('${baseurl}${CBWTF_MAP}$userId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -314,7 +315,7 @@ class _DiscoverNearbyHCFScreenState extends State<DiscoverNearbyHCFScreen> {
 
             /// Bottom Button
             Positioned(
-              bottom: 10,
+              bottom: 60,
               left: 24,
               right: 24,
               child: SizedBox(

@@ -36,8 +36,16 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
   @override
   void initState() {
     super.initState();
-    widget.wasteId==0?fetchBarcodeDetails():fetchWasteDetails();
+    print(widget.barcode);
+    print(widget.wasteId);
+
+    if (widget.barcode == null || widget.barcode.trim().isEmpty || widget.barcode == '0') {
+      fetchWasteDetails();
+    } else {
+      fetchBarcodeDetails();
+    }
   }
+
 
   Future<void> fetchBarcodeDetails() async {
     try {
@@ -52,6 +60,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
         },
       );
       print('${baseurl}${GET_BARCODE_DATA}${widget.barcode}');
+      print(response.body);
       if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
         setState(() {
@@ -87,7 +96,8 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
           'Content-Type': 'application/json',
         },
       );
-      print('${baseurl}${GET_BARCODE_DATA}${widget.wasteId}');
+      print('${baseurl}${GET_BIO_WASTE_DETAILS}${widget.wasteId}');
+      print(response.statusCode);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
@@ -234,125 +244,120 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
   @override
   Widget build(BuildContext context) {
     return StreamProvider<NetworkStatus>(
-        create: (context) =>
-        NetworkStatusService().networkStatusController.stream,
-        initialData: NetworkStatus.Online,
-        child: NetworkAwareWidget(
-        onlineChild:Scaffold(
-      body: Stack(
-        children: [
-          mAppBar(
-            onLeadingIconClick: () => Navigator.pop(context),
-            scTitle: 'View Details',
-            centerTile: false,
-            showLeading: true,
-          ),
-          Positioned.fill(
-            top: responsiveHeight(110),
-            bottom: responsiveHeight(0),
-            child: Container(
-              padding: EdgeInsets.symmetric(horizontal: 10, vertical: 30),
-              decoration: BoxDecoration(
-                color: kWhiteColor,
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(40),
-                  topLeft: Radius.circular(40),
+      create: (context) =>
+      NetworkStatusService().networkStatusController.stream,
+      initialData: NetworkStatus.Online,
+      child: NetworkAwareWidget(
+        onlineChild: Scaffold(
+          body: Stack(
+            children: [
+              mAppBar(
+                onLeadingIconClick: () => Navigator.pop(context),
+                scTitle: 'View Details',
+                centerTile: false,
+                showLeading: true,
+              ),
+              Positioned.fill(
+                top: responsiveHeight(110),
+                bottom: responsiveHeight(0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 30),
+                  decoration: const BoxDecoration(
+                    color: kWhiteColor,
+                    borderRadius: BorderRadius.only(
+                      topRight: Radius.circular(40),
+                      topLeft: Radius.circular(40),
+                    ),
+                  ),
+                  child: load
+                      ? Center(
+                    child: CircularProgressIndicator(color: kPrimaryColor),
+                  )
+                      : rows.isEmpty || rows == null
+                      ? Datanotfound()
+                      : SingleChildScrollView(
+                    child: Column(
+                      children: [
+                        const SizedBox(height: 20),
+                        _buildTable(),
+                        const SizedBox(height: 40),
+                        save
+                            ? Center(
+                          child: CircularProgressIndicator(
+                            color: kPrimaryColor,
+                          ),
+                        )
+                            : Row(
+                          mainAxisAlignment:
+                          MainAxisAlignment.spaceEvenly,
+                          children: [
+                            SizedBox(
+                              width: responsiveWidth(150),
+                              child: AppButton(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 5,
+                                  horizontal: 15,
+                                ),
+                                text: 'Save',
+                                onPressed: () {
+                                  bool isValid = true;
+
+// Check all textfields first
+                                  for (int i = 0; i < _receivedQtyControllers.length; i++) {
+                                    final text = _receivedQtyControllers[i].text.trim();
+
+                                    if (text.isEmpty) {
+                                      value_entered[i] = false;
+                                      isValid = false;
+                                    } else {
+                                      value_entered[i] = true;
+                                    }
+                                  }
+
+// If any field is empty, show error and stop
+                                  if (!isValid) {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Please fill all Received Quantity fields.'),
+                                      ),
+                                    );
+                                    return; // Stop here — don’t hit API
+                                  }
+
+// ✅ All fields are filled — now hit API
+                                  SaveWaste();
+
+                                },
+                                color: Colors.deepOrange,
+                              ),
+                            ),
+                            SizedBox(
+                              width: responsiveWidth(150),
+                              child: AppButton(
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 5,
+                                  horizontal: 15,
+                                ),
+                                text: 'Cancel',
+                                onPressed: () =>
+                                    Navigator.pop(context),
+                                color: Colors.grey.shade400,
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
                 ),
               ),
-              child:
-              load
-                  ? Center(
-                child: CircularProgressIndicator(color: kPrimaryColor),
-              )
-                  : rows.isEmpty||rows!=null?Datanotfound():Column(
-                children: [
-
-                  SizedBox(height: 20),
-                  _buildTable(),
-                  Spacer(),
-                  save
-                      ? Center(
-                    child: CircularProgressIndicator(
-                      color: kPrimaryColor,
-                    ),
-                  )
-                      : Row(
-                    mainAxisAlignment:
-                    MainAxisAlignment.spaceEvenly,
-                    children: [
-                      SizedBox(
-                        width: responsiveWidth(150),
-                        child: AppButton(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 5,
-                            horizontal: 15,
-                          ),
-                          text: 'Save',
-                          onPressed: () {
-                            bool isValid = true;
-
-                            for (
-                            int i = 0;
-                            i < _receivedQtyControllers.length;
-                            i++
-                            ) {
-                              final text =
-                              _receivedQtyControllers[i].text
-                                  .trim();
-
-                              if (text.isEmpty) {
-                                // Mark that this row does NOT have a value
-                                value_entered[i] = false;
-                                isValid = false;
-
-
-                              } else {
-                                value_entered[i] = true;
-                                SaveWaste();
-
-                              }
-                            }
-
-                            // Trigger error message if any value is empty
-                            if (!isValid) {
-                              ScaffoldMessenger.of(
-                                context,
-                              ).showSnackBar(
-                                const SnackBar(
-                                  content: Text(
-                                    'Please fill all Received Quantity fields.',
-                                  ),
-                                ),
-                              );
-                              return; // Exit early, do not proceed
-                            }
-
-
-                          },
-                          color: Colors.deepOrange,
-                        ),
-                      ),
-                      SizedBox(
-                        width: responsiveWidth(150),
-                        child: AppButton(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 5,
-                            horizontal: 15,
-                          ),
-                          text: 'Cancel',
-                          onPressed: () => Navigator.pop(context),
-                          color: Colors.grey.shade400,
-                        ),
-                      ),
-                    ],
-                  ),
-                ],
-              ),
-            ),
+            ],
           ),
-        ],
+        ),
+        offlineChild: Offline(),
       ),
-    ), offlineChild: Offline()));
+    );
+
   }
 
 
@@ -408,6 +413,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
 
     final color = _getColorFromType(colourType);
     final diff = _getDiff(index, pickupQty);
+    print(pickupQty);
 
     return TableRow(
       children: [
@@ -426,6 +432,10 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
               if (_receivedQtyControllers[index].text.isEmpty) {
                 value_entered[index] = false;
               }
+              else{
+                value_entered[index]=true;
+              }
+
             }),
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
@@ -458,6 +468,11 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
                 if (_receivedQtyControllers[index].text.isEmpty) {
                   setState(() {
                     value_entered[index] = false;
+                  });
+                }
+                else{
+                  setState(() {
+                    value_entered[index] = true;
                   });
                 }
                 value_entered[index] = !value_entered[index];

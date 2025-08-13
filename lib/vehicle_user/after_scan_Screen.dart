@@ -48,13 +48,14 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
       final token = prefs.getString('Token') ?? '';
 
       final response = await http.get(
-        Uri.parse('${baseurl}${GET_BARCODE_DATA}${widget.barcode}'),
+        Uri.parse('${baseurl}${GET_QR_DATA}${widget.barcode}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
-      print('${baseurl}${GET_BARCODE_DATA}${widget.barcode}');
+      print('${baseurl}${GET_QR_DATA}${widget.barcode}');
+      print(response.body);
       if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
         setState(() {
@@ -409,7 +410,7 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
   TableRow _buildDataRow(Map<String, dynamic> item, int index) {
     final barcode = item['barcodeNo'] ?? '--';
     final colourType = item['colourType'] ?? 'G';
-    final pickupQty = (item['pickupTotalQuantityBagCbwtfKg'] ?? 0).toDouble();
+    final pickupQty = (item['totalQuantityBagKg'] ?? 0).toDouble();
     final color = _getColorFromType(colourType);
     final diff = _getDiff(index, pickupQty);
 

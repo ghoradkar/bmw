@@ -21,8 +21,8 @@ class BioWasteMapper {
       ipAddress: ipAddress,
     );
 
-    final totalQty = tableData.fold<int>(
-        0, (sum, row) => sum + (int.tryParse(row['quantity'].toString()) ?? 0));
+    final totalQty = tableData.fold<double>(
+        0, (sum, row) => sum + (double.tryParse(row['quantity'].toString()) ?? 0));
 
     return {
       "hcfWasteId": null,
@@ -62,11 +62,11 @@ class BioWasteMapper {
     return grouped.entries.map((entry) {
       final List<Map<String, dynamic>> groupRows = entry.value;
 
-      int totalQuantity = 0;
+      double totalQuantity = 0;
       int bagCounter = 1;
 
       final wasteDetList = groupRows.map((row) {
-        final int qty = int.tryParse(row['quantity'].toString()) ?? 0;
+        final double qty = double.tryParse(row['quantity'].toString()) ?? 0;
         totalQuantity += qty;
         print('roe');
         print(row['category'].toString().substring(0,1));

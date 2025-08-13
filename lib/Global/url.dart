@@ -29,24 +29,35 @@ String FILTER='get-bio-waste-data-forhcf-byDate';
 String MULTIPLE_BARCODE='generate-all-barcode';
 
 //cbwtf
-String CBWTF_MAP='get-biowaste-hcf-data';
+String CBWTF_MAP_LIST='get-biowaste-hcf-data';
 String CBWTF_ASSIGN_VEHICLE='saveMultipleVehicleAssign';
+String CBWTF_MAP='get-cbwtf-hcfList?userId=';
+String CBWTF_MAP_MULTIPLE_HCF='getCBWTFDataByHcfId?hcfId=';
+String CBWTF_MAP_DATA='getCBWTFData/';
 
 //vehicleuser
 String GET_BIO_WASTE_DATA='getBioWasteData-vehicle?userName=';
-String GET_BARCODE_DATA='get-biowaste-data-byBarcode/';
 String SAVE_WASTE='saveWasteRecivedData/';
+String GET_QR_DATA='get-biowaste-data-byQrCode/';
 
 //CBWTF Disposal
 String GET_WASTE_RECEIVED_BY_VEHICLE='get-cbwtf-data-completed-vehicle-disposal/';
 String GET_BIO_WASTE_DETAILS='getBioWasteDataDetails/';
+String GET_BARCODE_DATA='get-biowaste-data-byBarcode/';
 String SAVE_WASTE_DISPOSAL='saveWasteRecivedData-cbwtf-disposal/';
+String GET_DISPOSAL_DATA='get-cbwtf-disposal-data-completed?';
+String VIEW_DATA='get-cbwtf-dispsoal-data-completed-vehicle-newflow';
+String GET_OVERALL_DISPOSAL_DATA='get-cbwtf-dispsoal-data-completed-vehicle-newflow';
+String SAVE_OVERALL_DISPOSAL_DATA='save-cbwtf-disposal-data-newlflow';
 
 //CBWTF Reception
 String GET_VEHICLE_LIST='get-cbwtf-data-completed/';
 String GET_VEHICLE_DETAILS='get-cbwtf-data-completed-vehicle/';
 String GET_HCF_LIST='getHcfListByUserId/';
 String FILTER_HCF_DATA='get-bio-waste-data-forReception-byDate';
+String GET_OVERALL_DATA='get-cbwtf-data-completed-vehicle-newflow/';
+String SAVE_OVERALL_DATA='save-cbwtf-reception-data-newlflow';
+String SCAN_QR_CODE='get-biowaste-rec-data-byQrCode/';
 
 
 

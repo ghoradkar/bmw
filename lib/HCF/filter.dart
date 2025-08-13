@@ -110,6 +110,7 @@ class _ViewDetailsState extends State<ViewDetails> {
     setState(() => isLoading = true);
 
     try {
+
       SharedPreferences prefs = await SharedPreferences.getInstance();
       var token = prefs.getString('Token');
       var userJson = prefs.getString('user');
@@ -157,7 +158,7 @@ class _ViewDetailsState extends State<ViewDetails> {
         if (jsonResponse['status'] == 'Success') {
           final List<dynamic> data = jsonResponse['data'];
 
-          final Map<String, Map<String, int>> summary = {
+          final Map<String, Map<String, double>> summary = {
             'Yellow': {'quantity': 0, 'bags': 0},
             'Red': {'quantity': 0, 'bags': 0},
             'Blue': {'quantity': 0, 'bags': 0},
@@ -168,14 +169,14 @@ class _ViewDetailsState extends State<ViewDetails> {
             final colorId = item['wastecolourId'];
             final colorName = wasteColorLookup[colorId] ?? 'Unknown';
 
-            final quantity = (item['totalQuantityBagKg'] ?? 0) as num;
-            final bags = (item['totalNoOfBags'] ?? 0) as num;
+            final quantity = (item['totalQuantityBagKg'] ?? 0).toDouble();
+            final bags = (item['totalNoOfBags'] ?? 0).toDouble();
 
             if (summary.containsKey(colorName)) {
               summary[colorName]!['quantity'] =
-                  (summary[colorName]!['quantity'] ?? 0) + quantity.toInt();
+                  (summary[colorName]!['quantity'] ?? 0) + quantity;
               summary[colorName]!['bags'] =
-                  (summary[colorName]!['bags'] ?? 0) + bags.toInt();
+                  (summary[colorName]!['bags'] ?? 0) + bags;
             }
           }
 
@@ -191,7 +192,7 @@ class _ViewDetailsState extends State<ViewDetails> {
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
-              builder: (context) => BioWasteDataScreen(1,summaryData),
+              builder: (context) => BioWasteTableScreen(summaryData),
             ),
           );
         } else {

@@ -10,7 +10,7 @@ import 'package:provider/provider.dart';
 
 import '../Global/AppDrawer.dart';
 import '../Global/app_bar.dart';
-import '../Global/app_routes.dart';
+ import '../Global/app_routes.dart';
 import '../Global/constant.dart';
 import '../Global/size_config.dart';
 
@@ -115,27 +115,20 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
   Future<void> fetchNearbyHCFs() async {
     try {
       final prefs = await SharedPreferences.getInstance();
-      final token = prefs.getString('Token') ?? '';
+      final token = await prefs.getString('Token') ?? '';
+      var userId = await prefs.getString('UserId');
 
-      final body = jsonEncode({
-
-         "geoTagLatitude":null,
-          "geoTagLongitude":null,
-          "distanceCbwtfHcf":null
-
-
-      });
 
       final response = await http.post(
-        Uri.parse('${baseurl}${CBWTF_MAP}'),
+        Uri.parse('${baseurl}${CBWTF_MAP}$userId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: body,
+       // body: body,
       );
-      print('${baseurl}${CBWTF_MAP}');
-      print(body);
+      print('${baseurl}${CBWTF_MAP}$userId');
+
       print(response.body);
 
       if (response.statusCode == 201) {
@@ -144,6 +137,53 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
         print(hcfList);
         _generateMarkers();
         print(hcfList.length);
+      } else {
+        print('API error: ${response.statusCode}');
+        if (response.statusCode==401){
+          final authService = AuthService();
+          authService.logout(context);
+
+        }
+      }
+    } catch (e) {
+      print('Error fetching HCFs: $e');
+    }
+  }
+
+  Future<void> fetchHCFPolygon(list) async {
+    print('list');
+    print(list);
+    final hcfIds = list
+        .map((e) => e['hcfId'].toString())
+        .toSet() // remove duplicates
+        .join(',');
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = await prefs.getString('Token') ?? '';
+      var userId = await prefs.getString('UserId');
+
+
+      final response = await http.get(
+        Uri.parse('${baseurl}${CBWTF_MAP_MULTIPLE_HCF}$hcfIds'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        // body: body,
+      );
+      print('${baseurl}${CBWTF_MAP_MULTIPLE_HCF}$hcfIds');
+
+      print(response.body);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+       List filteredList = data['data'];
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => GetBioWasteData(filteredList),
+          ),
+        );
       } else {
         print('API error: ${response.statusCode}');
         if (response.statusCode==401){
@@ -323,8 +363,9 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
     setState(() {
       _markers = insidePolygon;
      filteredList;
-    // print(filteredList);
+     print(filteredList);
     });
+    //fetchHCFPolygon(filteredList);
     Navigator.push(
       context,
       MaterialPageRoute(
@@ -439,9 +480,11 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
                   //   ),
                   // ),
 
-                  Expanded(                    child:
+                  SizedBox(
+                    height: responsiveHeight(700),
+                    child:
                     Padding(
-                      padding: EdgeInsets.only(top: 10,left: 10,right: 10,bottom: 30),
+                      padding: EdgeInsets.only(top: 10,left: 10,right: 10,bottom: 10),
                       child: GoogleMap(
 
                       onMapCreated: (controller) => _mapController = controller,

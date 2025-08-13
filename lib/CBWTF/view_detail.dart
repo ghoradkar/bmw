@@ -11,7 +11,7 @@ import '../network/network_status.dart';
 import '../network/offline.dart';
 
 class HcfDetailsScreen extends StatefulWidget {
-   String? hcfcode;
+   int? hcfcode;
   HcfDetailsScreen(this.hcfcode,{super.key});
   @override
   State<HcfDetailsScreen> createState() => _HcfDetailsScreenState();
@@ -39,6 +39,22 @@ class _HcfDetailsScreenState extends State<HcfDetailsScreen> {
     super.initState();
     getRows();
 
+  }
+  Color _getColorFromType(String type) {
+    switch (type) {
+      case 'R':
+        return Colors.red;
+      case 'Y':
+        return Colors.yellow;
+      case 'B':
+        return Colors.blue;
+      case 'W':
+        return Colors.white;
+      case 'G':
+        return Colors.green;
+      default:
+        return Colors.grey.shade300;
+    }
   }
 
 
@@ -132,17 +148,15 @@ class _HcfDetailsScreenState extends State<HcfDetailsScreen> {
                   topLeft: Radius.circular(40),
                 ),
               ),
-              child: SingleChildScrollView(
-                scrollDirection: Axis.vertical,
-                child: Padding(
+              child:  Padding(
                   padding: const EdgeInsets.all(20.0),
                   child: load?Center(child:CircularProgressIndicator(color: kPrimaryColor,)):
                   rows==null ||rows.isEmpty?Datanotfound():Table(
                     columnWidths: const {
                       0: FixedColumnWidth(6),
                       1: FlexColumnWidth(3),
-                      2: FlexColumnWidth(2),
-                      3: FlexColumnWidth(2),
+                      2: FlexColumnWidth(1.7),
+                      3: FlexColumnWidth(1.7),
                     },
 
                     border: TableBorder.all(
@@ -195,10 +209,11 @@ class _HcfDetailsScreenState extends State<HcfDetailsScreen> {
                       for (int i = 0; i < rows.length; i++)
                         TableRow(
                           children: [
-                            Container(height: 40, color: Colors.red),
+                            Container(height: 50, color:   _getColorFromType(rows[i]['colourType'] ?? 'G')),
                             Padding(
                               padding: const EdgeInsets.all(8),
-                              child: Text(rows[i]['barcodeNo']==null?'NA':rows[i]['barcodeNo']),
+                              child: Text(rows[i]['barcodeNo']==null?'NA':rows[i]['barcodeNo'],
+                              style: TextStyle(fontSize: 12),),
                             ),
                             Padding(
                               padding: const EdgeInsets.all(8),
@@ -216,7 +231,7 @@ class _HcfDetailsScreenState extends State<HcfDetailsScreen> {
                 ),
               ),
             ),
-          ),
+
         ],
       ),
     ), offlineChild: Offline()));

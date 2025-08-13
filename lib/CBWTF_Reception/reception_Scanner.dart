@@ -1,56 +1,59 @@
+import 'dart:developer';
 import 'package:flutter/material.dart';
-import 'package:flutter_barcode_scanner_plus/flutter_barcode_scanner_plus.dart';
+import 'package:qr_code_scanner_plus/qr_code_scanner_plus.dart';
 import 'package:mpcb_bio_waste/CBWTF_Reception/reception_after_scan.dart';
-import 'package:mpcb_bio_waste/vehicle_user/after_scan_Screen.dart';
 import 'package:provider/provider.dart';
 
 import '../Global/app_bar.dart';
-import '../Global/app_routes.dart';
 import '../Global/constant.dart';
 import '../Global/size_config.dart';
 import '../network/network_aware.dart';
 import '../network/network_status.dart';
 import '../network/offline.dart';
 
-
 class ReceptionScanner extends StatefulWidget {
-
   @override
   _ReceptionScannerState createState() => _ReceptionScannerState();
 }
 
 class _ReceptionScannerState extends State<ReceptionScanner> {
+  final GlobalKey qrKey = GlobalKey(debugLabel: 'QR');
+  QRViewController? controller;
   String _scannedCode = 'Scanning...';
+  bool isNavigated = false;
 
   @override
-  void initState() {
-    super.initState();
-    _scanBarcode(); // Start scanning on load
+  void reassemble() {
+    super.reassemble();
+    if (controller != null) {
+      if (mounted) {
+        controller!.pauseCamera();
+        controller!.resumeCamera();
+      }
+    }
   }
 
-  Future<void> _scanBarcode() async {
-    try {
-      String code = await FlutterBarcodeScanner.scanBarcode(
-        '#FF6686', 'Cancel', true, ScanMode.BARCODE,
-      );
-
-      if (code != '-1') {
-        setState(() => _scannedCode = 'Scanned: $code');
-
-        // Navigate to next screen
+  void _onQRViewCreated(QRViewController controller) {
+    this.controller = controller;
+    controller.scannedDataStream.listen((scanData) {
+      if (!isNavigated && scanData.code != null) {
+        setState(() => _scannedCode = 'Scanned: ${scanData.code}');
+        isNavigated = true;
 
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => ReceptionAfterScan(barcode: code),
+            builder: (context) => ReceptionAfterScan(barcode: scanData.code!),
           ),
         );
-      } else {
-        setState(() => _scannedCode = 'Scan canceled');
       }
-    } catch (e) {
-      setState(() => _scannedCode = 'Error: $e');
-    }
+    });
+  }
+
+  @override
+  void dispose() {
+    controller?.dispose();
+    super.dispose();
   }
 
   @override
@@ -60,54 +63,66 @@ class _ReceptionScannerState extends State<ReceptionScanner> {
       NetworkStatusService().networkStatusController.stream,
       initialData: NetworkStatus.Online,
       child: NetworkAwareWidget(
-      onlineChild:Scaffold(
-      backgroundColor: Colors.white,
+        onlineChild: Scaffold(
+          backgroundColor: Colors.white,
+          body: Stack(
+            children: [
+              /// Custom Gradient AppBar
+              mAppBar(
+                onLeadingIconClick: () => Navigator.pop(context),
+                scTitle: 'Scan',
+                centerTile: false,
+                showLeading: true,
+              ),
 
-      body: Stack(
-          children: [
-            /// Custom Gradient AppBar
-            mAppBar(
-              onLeadingIconClick: () => Navigator.pop(context),
-              scTitle: 'Scan',
-              centerTile: false,
-              showLeading: true,
-
-            ),
-
-            /// Body with tabs
-            Positioned.fill(
-              top: responsiveHeight(110),
-              bottom: responsiveHeight(
-                0,
-              ), // offset to appear below custom app bar
-              child: Container(
-                height: responsiveHeight(100),
-                padding: EdgeInsets.symmetric(horizontal: 10,vertical: 30),
-                decoration: BoxDecoration(
-                  color: kWhiteColor,
-
-                  borderRadius: const BorderRadius.only(
-                    topRight: Radius.circular(40),
-                    topLeft: Radius.circular(40),
+              /// Body with QR scanner
+              Positioned.fill(
+                top: responsiveHeight(110),
+                bottom: responsiveHeight(0),
+                child: Container(
+                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 30),
+                  decoration: BoxDecoration(
+                    color: kWhiteColor,
+                    borderRadius: const BorderRadius.only(
+                      topRight: Radius.circular(40),
+                      topLeft: Radius.circular(40),
+                    ),
+                  ),
+                  child: Column(
+                    children: [
+                      Expanded(
+                        flex: 4,
+                        child: QRView(
+                          key: qrKey,
+                          onQRViewCreated: _onQRViewCreated,
+                        ),
+                      ),
+                      const SizedBox(height: 20),
+                      Text(_scannedCode),
+                      const SizedBox(height: 20),
+                      ElevatedButton.icon(
+                        onPressed: () {
+                          controller?.resumeCamera();
+                          setState(() {
+                            _scannedCode = 'Scanning...';
+                            isNavigated = false;
+                          });
+                        },
+                        icon: const Icon(Icons.qr_code),
+                        label: const Text("Scan Again"),
+                        style: ElevatedButton.styleFrom(
+                          backgroundColor: Colors.deepOrange,
+                        ),
+                      )
+                    ],
                   ),
                 ),
-                child:Column(children: [
-
-                  const SizedBox(height: 20),
-                  Text(_scannedCode),
-                  const SizedBox(height: 20),
-                  ElevatedButton.icon(
-                    onPressed: _scanBarcode,
-                    icon: Icon(Icons.qr_code),
-                    label: Text("Scan Again"),
-                    style: ElevatedButton.styleFrom(
-                      backgroundColor: Colors.deepOrange,
-                    ),
-                  )
-                ]),
               ),
-            ),
-          ]),
-    ), offlineChild: Offline()));
+            ],
+          ),
+        ),
+        offlineChild: Offline(),
+      ),
+    );
   }
 }

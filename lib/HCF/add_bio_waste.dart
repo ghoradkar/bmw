@@ -8,14 +8,22 @@ import 'package:intl/intl.dart';
 import 'package:mpcb_bio_waste/Global/constant.dart';
 import 'package:mpcb_bio_waste/Global/images.dart';
 import 'package:mpcb_bio_waste/Global/size_config.dart';
+import 'package:mpcb_bio_waste/HCF/table.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../Global/AppDrawer.dart';
+import '../Global/app_bar.dart';
 import '../Global/app_button.dart';
 import '../Global/app_routes.dart';
 import '../Global/app_textfield.dart';
 import '../Global/url.dart';
+import '../network/network_aware.dart';
+import '../network/network_status.dart';
+import '../network/offline.dart';
 import 'barcodeImage.dart';
 import 'bio_waste_summary.dart';
+import 'bio_waste_table.dart';
 
 class AddBioWasteDataTab extends StatefulWidget {
   const AddBioWasteDataTab({super.key});
@@ -28,6 +36,8 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
   final List<String> categories = ['Yellow', 'Red', 'White', 'Blue'];
   final List<int> bagOptions = List.generate(20, (i) => i + 1);
   List<Map<String, dynamic>> selectedWasteEntries = [];
+  Key dropdownKey = UniqueKey();
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   void _onAddToBarcodeList({
     required int hcfWasteId,
     required int hcfWasteQntyDetId,
@@ -56,6 +66,8 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
   bool isLoadingbarcode = false;
   List<ColorCategory> colorCategories = [];
   ColorCategory? selectedColor;
+  List<Map<String, dynamic>> existingData = [];
+
 
   @override
   void initState() {
@@ -67,161 +79,49 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
   }
 
 
+    Future<void> saveBioWasteLocally() async {
+      SharedPreferences prefs = await SharedPreferences.getInstance();
 
-  Future<void> SaveBioWaste() async {
-    setState(() {
-      isLoading=true;
-    });
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    var token = prefs.getString('Token');
+      // Load existing saved data
+      String? existingJson = prefs.getString('tableData');
 
-    Map<String,dynamic> user=jsonDecode(prefs.getString('user')!);
-    print(user);
-    final payload = BioWasteMapper.buildPayload(
-      tableData: tableData,
+      if (existingJson != null) {
+        List decoded = jsonDecode(existingJson);
+        existingData = decoded
+            .map<Map<String, dynamic>>((item) => Map<String, dynamic>.from(item))
+            .toList();
+      }
 
-      hcfId: user['hcfId'],
-      hcfCode: user['hcfCode'],
-      wasteQntyDate: DateFormat('dd/MM/yyyy').format(selectedDate!),
-      userId: user['userId'],
-      createdDate: DateTime.now().toUtc().toIso8601String(),
-      updatedDate: DateTime.now().toUtc().toIso8601String(),
-      macId: "00-14-22-01-23-45",
-      ipAddress: "192.168.1.1",
-    );
-   print(jsonEncode(payload));
+      // Add only non-duplicate entries based on color + quantity
+      for (var newItem in tableData) {
+        bool isDuplicate = existingData.any((entry) =>
+        entry['color'] == newItem['color'] &&
+            entry['quantity'].toString().trim() == newItem['quantity'].toString().trim());
 
-
-    try {
-      final headers = {
-        'Content-Type': 'application/json; charset=UTF-8',
-        'Accept': 'application/json ; charset=UTF-8',
-        'Authorization': 'Bearer $token',
-      };
-      final response = await http.post(
-        Uri.parse('${baseurl}${ADD_UPDATE_WASTE}'),
-        headers: headers,
-       body: jsonEncode(payload)
-      );
-
-      if (response.statusCode == 201) {
-        print(response.body);
-        final jsonResponse = jsonDecode(response.body);
-        if (jsonResponse['status'] == 'success') {
-          final data = jsonResponse['data'];
-          final int hcfWasteId = data['hcfWasteId'];
-
-          List<dynamic> wasteList = data['wasteList'] ?? [];
-          print(wasteList);
-
-          for (var waste in wasteList) {
-            final hcfWasteQntyId = waste["hcfWasteQntyId"];
-            final List<dynamic> wasteDetList = waste["wasteDetList"] ?? [];
-
-            for (var det in wasteDetList) {
-              final hcfWasteQntyDetId = det["hcfWasteQntyDetId"];
-
-              selectedWasteEntries.add({
-                "hcfWasteId": hcfWasteId,
-                "hcfWasteQntyId": hcfWasteQntyId,
-                "hcfWasteQntyDetId": hcfWasteQntyDetId,
-              });
-            }
-          }
-
-
-          showSuccessDialog(context);
-
-
-
+        if (!isDuplicate) {
+          existingData.add(newItem);
         } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Add Waste Failed')),
-          );
-          print("API returned non-success status.");
+          print("Duplicate entry skipped: ${newItem['color']} with quantity ${newItem['quantity']}");
         }
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Authentication Error')),
-        );
-        print("HTTP error: ${response.statusCode}");
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error fetching bio waste summary')),
+
+      // Save updated data back to prefs
+      await prefs.setString('tableData', jsonEncode(existingData));
+      print('tableData');
+      print(tableData);
+
+
+      _resetForm();
+      Navigator.push(
+        context,
+        MaterialPageRoute(
+          builder: (context) => BioWasteSummaryTable(tableData),
+        ),
       );
-      print('Error fetching bio waste summary: $e');
     }
 
-    setState(() {
-      isLoading = false;
-    });
-  }
-  Future<void> GenerateBarcode(Map<String, dynamic> selectedEntry) async {
-    setState(() {
-      isLoadingbarcode=true;
-    });
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    var token = prefs.getString('Token');
-
-    // Map<String,dynamic> user=jsonDecode(prefs.getString('user')!);
-    // print(user);
-  final body = {
-  "hcfWasteId": selectedEntry["hcfWasteId"],
-  "hcfWasteQntyDetId": selectedEntry["hcfWasteQntyDetId"],
-  "wasteQtyId": selectedEntry["hcfWasteQntyId"]
-  };
 
 
-
-
-    print(jsonEncode(body));
-
-    try {
-      final headers = {
-        'Content-Type': 'application/json; charset=UTF-8',
-        'Accept': 'application/json ; charset=UTF-8',
-        'Authorization': 'Bearer $token',
-      };
-      final response = await http.post(
-          Uri.parse('${baseurl}${GENERATE_BARCODE}'),
-          headers: headers,
-          body: jsonEncode(body)
-      );
-
-
-
-      print(response.body);
-
-      if (response.statusCode == 200) {
-
-        final Uint8List imageBytes = response.bodyBytes as Uint8List;
-
-        // Navigate to a preview screen
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => BarcodeImageScreen(imageBytes: imageBytes),
-          ),
-        );
-
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Authentication Error')),
-        );
-        print("HTTP error: ${response.statusCode}");
-      }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error fetching bio waste summary')),
-      );
-      print('Error fetching bio waste summary: $e');
-    }
-
-    setState(() {
-      isLoadingbarcode = false;
-    });
-  }
   Future<void> GetCategoryList() async {
     setState(() {
       isLoadingColor=true;
@@ -278,19 +178,26 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
     });
     if (selectedColor != null && selectedBags != null) {
       for (int i = 0; i < selectedBags!; i++) {
-        print(selectedCategory);
+
         tableData.add({
           'id':selectedColor!.id,
           'category': selectedColor!.name,
           'quantity': '',
           'Date':DateTime.now().toString().substring(0,10),
           'Time':DateTime.now().toString().substring(11,19),
-          'color':selectedColor!.name=='Yellow'?Colors.yellow:selectedColor!.name=='Blue'?Colors.blue:selectedColor!.name=='Red'?Colors.red:Colors.white
+          'color':selectedColor!.name,
+          'bags':selectedBags
+              //=='Yellow'?Colors.yellow:selectedColor!.name=='Blue'?Colors.blue:selectedColor!.name=='Red'?Colors.red:Colors.white
               
         });
       }
       setState(() {
+        selectedBags=null;
+      //  saveBioWasteLocally();
+
         _resetForm();
+
+
       });
     }
   }
@@ -317,6 +224,7 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
       selectedBags = null;
       selectedDate = DateTime.now();
       selectedTime = TimeOfDay.now();
+
     });
   }
 
@@ -342,11 +250,51 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
 
   @override
   Widget build(BuildContext context) {
-    return SingleChildScrollView(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 10),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
+     SizeConfig().init(context);
+
+    return StreamProvider<NetworkStatus>(
+        create: (context) =>
+        NetworkStatusService().networkStatusController.stream,
+        initialData: NetworkStatus.Online,
+        child: NetworkAwareWidget(
+        onlineChild: Scaffold(
+        key: _scaffoldKey,
+        drawer: AppDrawer(),
+        body: Stack(
+            children: [
+            /// Custom Gradient AppBar
+            mAppBar(
+            scTitle: 'HCF Bio Waste Data',
+            centerTile: true,
+            leadingWidget: Builder(
+              builder: (context) => IconButton(
+                icon: const Icon(Icons.menu, color: Colors.white),
+                onPressed: () => Scaffold.of(context).openDrawer(),
+              ),
+            ),
+            showLeading: true,
+
+        ),
+
+        /// Body with tabs
+        Positioned.fill(
+        top: responsiveHeight(110),
+    bottom: responsiveHeight(0),// offset to appear below custom app bar
+    child: Container(
+      padding:const EdgeInsets.all(15) ,
+
+    decoration: BoxDecoration(
+    color: kWhiteColor,
+    borderRadius: const BorderRadius.only(
+    topRight: Radius.circular(40),
+    topLeft: Radius.circular(40),
+    ),
+    ),
+    child:  SingleChildScrollView(child:Column(
+    children: [
+    SizedBox(height: responsiveHeight(20)),
+
+
           /// Form Card
           Container(
             padding: const EdgeInsets.all(15),
@@ -380,6 +328,7 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
                         ),
                         items: colorCategories.map((colorCat) {
                           final Color? color = getColorFromCode(colorCat.code);
+
                           return DropdownMenuItem<ColorCategory>(
                             value: colorCat,
                             child: Row(
@@ -415,6 +364,7 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
                     /// Bags Dropdown
                     Expanded(
                       child: DropdownButtonFormField<int>(
+                        key: dropdownKey,
                         icon: const Icon(Icons.keyboard_arrow_down_outlined),
                         value: selectedBags,
                         decoration: const InputDecoration(
@@ -447,7 +397,20 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
                                 )
                                 .toList(),
                         onChanged: (val) {
-                          setState(() => selectedBags = val);
+                          setState(() {
+                            selectedBags = val;
+
+                          });
+                          _addBagsToTable();
+
+    setState(() {
+    selectedBags = null;
+    dropdownKey = UniqueKey();
+    });
+
+
+
+
                         },
                       ),
                     ),
@@ -510,36 +473,7 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
 
                 const SizedBox(height: 16),
 
-                /// Reset & Add Buttons
-                Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                  children: [
-                    SizedBox(
-                      width: responsiveWidth(150),
-                      child: AppButton(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 5,
-                          horizontal: 15,
-                        ),
-                        text: 'Reset',
-                        onPressed: _resetForm,
-                        color: Colors.grey.shade400,
-                      ),
-                    ),
-                    SizedBox(
-                      width: responsiveWidth(150),
-                      child: AppButton(
-                        padding: const EdgeInsets.symmetric(
-                          vertical: 5,
-                          horizontal: 15,
-                        ),
-                        text: 'Add',
-                        onPressed: _addBagsToTable,
-                        color: Colors.deepOrange,
-                      ),
-                    ),
-                  ],
-                ),
+
               ],
             ),
           ),
@@ -566,7 +500,7 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
                 children: const [
                   _TableHeaderCell("Bag No."),
                         _TableHeaderCell("Category"),
-                        _TableHeaderCell("Quantity (kg/Annum)"),
+                        _TableHeaderCell("Weight (kg)"),
                         _TableHeaderCell("Action"),
                 ],
               ),
@@ -591,7 +525,7 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
                             height: 14,
                             decoration: BoxDecoration(
                               color:
-                              tableData[i]['color'],
+                              tableData[i]['color']=='Yellow'?Colors.yellow:tableData[i]['color']=='Blue'?Colors.blue:tableData[i]['color']=='Red'?Colors.red:Colors.white,
                               shape: BoxShape.rectangle,
                               border: Border.all(
                                 color:
@@ -638,25 +572,13 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
                         ),
                         onChanged: (val) {
                           tableData[i]['quantity'] =
-                              int.tryParse(val) ?? 0;
+                              double.tryParse(val) ?? 0;
+
                         },
                       ),
                     ),
 
-                    saved?Padding(
-    padding: const EdgeInsets.all(8),
-    child:IconButton(
-    icon: const Icon(Icons.print, color: Colors.black),
-    onPressed: ()
-      async{
-        print('dd');
-       print( selectedWasteEntries[i]);
-        await GenerateBarcode(selectedWasteEntries[i]);
-
-
-      }
-    ),
-    ):Padding(
+                    Padding(
                       padding: const EdgeInsets.all(8),
                       child:IconButton(
                         icon: const Icon(Icons.remove_circle, color: Colors.red),
@@ -671,55 +593,103 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
 
 
           /// Bottom Buttons
-          isLoading?CircularProgressIndicator(color: kPrimaryColor,):
-          saved==false?Row(
-            mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-            children: [
-              SizedBox(
-                width: responsiveWidth(150),
-                child: AppButton(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 5,
-                    horizontal: 15,
-                  ),
-                  text: 'Save',
-                  onPressed: () {
-                    setState(() {
-                      tableData.isNotEmpty?{
-                      saved = true,
-                      print(tableData),
-                      SaveBioWaste(),}:{
-                        ScaffoldMessenger.of(context).showSnackBar(
-                          const SnackBar(content: Text('Please Add Waste')),
-                        ),
-                      };
-
-                    });
-                  },
-                  color: Colors.deepOrange,
-                ),
+      /// Reset & Add Buttons
+      Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: [
+          SizedBox(
+            width: responsiveWidth(150),
+            child: AppButton(
+              padding: const EdgeInsets.symmetric(
+                vertical: 5,
+                horizontal: 15,
               ),
-              SizedBox(
-                width: responsiveWidth(150),
-                child: AppButton(
-                  padding: const EdgeInsets.symmetric(
-                    vertical: 5,
-                    horizontal: 15,
-                  ),
-                  text: 'Cancel',
-                  onPressed: () => {
-                    _resetForm(),
-                    tableData.clear(),
+              text: 'Reset',
+              onPressed: () {
+                _resetForm();
+                tableData.clear();
+                existingData.clear();
 
-                  },
-                  color: Colors.grey.shade400,
-                ),
+
+                },
+              color: Colors.grey.shade400,
+            ),
+          ),
+          SizedBox(
+            width: responsiveWidth(150),
+            child: AppButton(
+              padding: const EdgeInsets.symmetric(
+                vertical: 5,
+                horizontal: 15,
               ),
-            ],
-          ):SizedBox(),
+              text: 'Add',
+              onPressed: () {
+                tableData.isNotEmpty || existingData.isNotEmpty?
+
+                {saveBioWasteLocally()}:
+                    { ScaffoldMessenger.of(context).showSnackBar(
+                      SnackBar(content: Text('Please Add waste'), backgroundColor: Colors.red),
+                    )}
+
+                ;},
+              color: Colors.deepOrange,
+            ),
+          ),
         ],
       ),
-    );
+
+          // isLoading?CircularProgressIndicator(color: kPrimaryColor,):
+          // saved==false?Row(
+          //   mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+          //   children: [
+          //     SizedBox(
+          //       width: responsiveWidth(150),
+          //       child: AppButton(
+          //         padding: const EdgeInsets.symmetric(
+          //           vertical: 5,
+          //           horizontal: 15,
+          //         ),
+          //         text: 'Save',
+          //         onPressed: () {
+          //           setState(() {
+          //             tableData.isNotEmpty?{
+          //             saved = true,
+          //             print(tableData),
+          //             SaveBioWaste(),}:{
+          //               ScaffoldMessenger.of(context).showSnackBar(
+          //                 const SnackBar(content: Text('Please Add Waste')),
+          //               ),
+          //             };
+          //
+          //           });
+          //         },
+          //         color: Colors.deepOrange,
+          //       ),
+          //     ),
+          //     SizedBox(
+          //       width: responsiveWidth(150),
+          //       child: AppButton(
+          //         padding: const EdgeInsets.symmetric(
+          //           vertical: 5,
+          //           horizontal: 15,
+          //         ),
+          //         text: 'Cancel',
+          //         onPressed: () => {
+          //           _resetForm(),
+          //           tableData.clear(),
+          //
+          //         },
+          //         color: Colors.grey.shade400,
+          //       ),
+          //     ),
+          //   ],
+          // ):SizedBox(),
+        ],
+      ),
+    ),
+    )
+        )])),
+    offlineChild: Offline()));
   }
 
   void showSuccessDialog(BuildContext context) {

@@ -13,6 +13,7 @@ import 'package:mpcb_bio_waste/CBWTF_Reception/reception_Scanner.dart';
 import 'package:mpcb_bio_waste/CBWTF_Reception/vehicle_list.dart';
 import 'package:mpcb_bio_waste/CBWTF_Reception/view_details_after_Scan.dart';
 import 'package:mpcb_bio_waste/Global/route_exception.dart';
+import 'package:mpcb_bio_waste/HCF/add_bio_waste.dart';
 import 'package:mpcb_bio_waste/HCF/bio_waste_screen.dart';
 import 'package:mpcb_bio_waste/authentication/forget_password.dart';
 import 'package:mpcb_bio_waste/authentication/logout_screen.dart';
@@ -71,7 +72,7 @@ class AppRoutes {
 
         case hcf_biowasteScreen:
           return MaterialPageRoute(
-            builder: (_) => BioWasteDataScreen(0,[]),
+            builder: (_) => AddBioWasteDataTab(),
           );
         case homescreen:
           return MaterialPageRoute(
@@ -83,7 +84,7 @@ class AppRoutes {
           );
         case hcf_detail_screen:
           return MaterialPageRoute(
-            builder: (_) => HcfDetailsScreen(''),
+            builder: (_) => HcfDetailsScreen(0),
           );
 
         case nearby_hcf:

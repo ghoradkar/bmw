@@ -19,17 +19,44 @@ class AppDrawer extends StatefulWidget {
 class _AppDrawerState extends State<AppDrawer> {
   String username = '';
   String email = '';
+  String? userRole ;
 
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
   }
+  void _redirectToRoleScreen(String? role) {
+    final routeMap = {
+      'HCF User': AppRoutes.hcf_biowasteScreen,
+      'CBWT User': AppRoutes.nearby_hcf,
+      //  'CBWT User': AppRoutes.nearby_hcf,
+      'CBWT Reception User': AppRoutes.vehicle_screen,
+      'Disposal User': AppRoutes.waste_received_byvehicle,
+      'Vehicle  User': AppRoutes.vehicle_nearby_hcf,
+    };
+
+    final route = routeMap[role];
+    if (route != null) {
+      Navigator.of(context).pushNamedAndRemoveUntil(route, (route) => false);
+    } else {
+      _showError('Unknown User !!');
+    }
+  }
+
+  void _showError(String message) {
+    if (context.mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text(message), backgroundColor: Colors.red),
+      );
+    }
+  }
 
   Future<void> _loadUserInfo() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       username = prefs.getString('userRole') ?? 'Guest';
+      userRole= prefs.getString('userRole');
       //email = prefs.getString('UserEmail') ?? 'guest@example.com';
     });
   }
@@ -90,13 +117,30 @@ class _AppDrawerState extends State<AppDrawer> {
           // Important: Remove any padding from the ListView.
           padding: EdgeInsets.zero,
           children: [
+           ListTile(
+              leading: Icon(
+                Icons.dashboard,
+                color: Colors.white,
+              ),
+              title: Text(
+                  'Dashboard',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15)),
+              onTap: () {
+
+                _redirectToRoleScreen(userRole);
+                // Update the state of the app.
+                // ...
+              },
+            ),
            username== 'HCF User'? ListTile(
               leading: Icon(
                 Icons.receipt_long,
                 color: Colors.white,
               ),
               title: Text(
-                  'HCF Bio Waste Data',
+                  'Search HCF Data',
                   style: TextStyle(
                       color: Colors.white,
                       fontSize: 15)),
@@ -135,23 +179,23 @@ class _AppDrawerState extends State<AppDrawer> {
           },
         ):SizedBox(),
 
-        ListTile(
-        leading: Icon(
-        Icons
-            .dashboard_customize_outlined,
-          color: Colors.white,
-        ),
-        title: Text(
-            'ID Card',
-            style: TextStyle(
-                color: Colors.white,
-                fontSize: 15)),
-        onTap: () {
-
-          // Update the state of the app.
-          // ...
-        },
-      ),
+      //   ListTile(
+      //   leading: Icon(
+      //   Icons
+      //       .dashboard_customize_outlined,
+      //     color: Colors.white,
+      //   ),
+      //   title: Text(
+      //       'ID Card',
+      //       style: TextStyle(
+      //           color: Colors.white,
+      //           fontSize: 15)),
+      //   onTap: () {
+      //
+      //     // Update the state of the app.
+      //     // ...
+      //   },
+      // ),
             ListTile(
               leading: Icon(
                 Icons

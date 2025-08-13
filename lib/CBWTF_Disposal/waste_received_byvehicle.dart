@@ -1,17 +1,17 @@
 import 'dart:convert';
-
 import 'package:flutter/material.dart';
 import 'dart:async';
-
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:mpcb_bio_waste/CBWTF_Disposal/disposal_after_scan.dart';
+import 'package:mpcb_bio_waste/CBWTF_Disposal/disposal_overall_colection.dart';
 import 'package:mpcb_bio_waste/Global/dataNotFound.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-
+import '../CBWTF_Reception/overall_Data_collection.dart';
 import '../Global/AppDrawer.dart';
 import '../Global/app_bar.dart';
+import '../Global/app_button.dart';
 import '../Global/app_routes.dart';
 import '../Global/constant.dart';
 import '../Global/size_config.dart';
@@ -29,6 +29,7 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
   bool _isLoading = true;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   List<Map<String, dynamic>> _tableData = [];
+  List <Map<String, dynamic>> formattedList=[];
 
   @override
   void initState() {
@@ -43,6 +44,21 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
       return 'Invalid date';
     }
   }
+  List<Map<String, dynamic>> transformResponse(
+      List responseList,
+      {required int userId}) {
+    return responseList.map((item) {
+      return {
+        "cbwtfRecpDispIds": item["cbwtfRecpDispIds"],
+        "totalNoOfBags": item["totalNoOfBags"],
+        "totalQuantityBagKg": item["totalQuantityBagKg"],
+        "pickupNoOfbag": item["pickupNoOfbag"],
+        "pickupTotalQuantityBagCbwtfKg": item["pickupTotalQuantityBagCbwtfKg"],
+        "lookupDetIdCategory": 3,
+        "userId": userId
+      };
+    }).toList();
+  }
   Future<void> fetchAssignedHCFData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -50,23 +66,27 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
       final UserId = prefs.getString('UserId');
 
       final response = await http.get(
-        Uri.parse('${baseurl}${GET_WASTE_RECEIVED_BY_VEHICLE}$UserId'),
+        Uri.parse('${baseurl}${GET_DISPOSAL_DATA}fromDate=${DateTime.now().toString().substring(0,10)}&toDate=${DateTime.now().toString().substring(0,10)}&userId=$UserId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },);
-      print('${baseurl}${GET_BIO_WASTE_DATA}$UserId');
+      print('${baseurl}${GET_DISPOSAL_DATA}fromDate=${DateTime.now().toString().substring(0,10)}&toDate=${DateTime.now().toString().substring(0,10)}&userId=$UserId');
       print(response.body);
-    if (response.statusCode == 201) {
+    if (response.statusCode == 200) {
         Map<String,dynamic>value = jsonDecode(response.body);
         List data=value['data'];
+        formattedList=transformResponse(data, userId: int.parse(UserId!));
+        print(formattedList);
+
+
 
 
       setState(() {
         _tableData = data.map((e) => {
-          'wasteId':e['hcfWasteId'],
-          'date': formatDate(e['vehicleAssignDateStr']),
-          'name': e['hcfName'],
+         'wasteId':e['hcfWasteId'],
+          'date': formatDate(e['assignDateCbwtf']),
+          'name': e['vehicleNo'],
           'bags': e['totalNoOfBags'],
           'waste': e['totalQuantityBagKg'],
         }).toList();
@@ -179,19 +199,19 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
                         topLeft: Radius.circular(40),
                       ),
                     ),
-                    child:
+                    child: _tableData.isEmpty||_tableData==null?Datanotfound():SingleChildScrollView(child:Column(children: [
                     _isLoading?Center(child:CircularProgressIndicator(color: kPrimaryColor,)):
-                    _tableData.isEmpty||_tableData==null?Datanotfound():Table(
+                   Table(
                       border: TableBorder.all(color: Colors.grey.shade400, width: 1,
                         borderRadius: BorderRadius.all(Radius.circular(10)), ),
 
                       columnWidths: const {
                         0: FlexColumnWidth(1),
-                        1: FlexColumnWidth(2),
-                        2: FlexColumnWidth(3),
+                        1: FlexColumnWidth(1.7),
+                        2: FlexColumnWidth(2),
                         3: FlexColumnWidth(1.5),
                         4: FlexColumnWidth(1.5),
-                        5: FlexColumnWidth(1),
+                       // 5: FlexColumnWidth(1),
 
                       },
                       children: [
@@ -207,7 +227,7 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
                           children: const [
                             _TableHeaderCell("Sr.\nNo."),
                             _TableHeaderCell("Date"),
-                            _TableHeaderCell("HCF Name"),
+                            _TableHeaderCell("Vehicle No."),
                             _TableHeaderCell("Total\nno. of Bags"),
                             _TableHeaderCell("Total Waste\nGenerated"),
                             _TableHeaderCell("Action"),
@@ -229,7 +249,7 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => DisposalAfterScan('',row['wasteId']),
+                                        builder: (context) => DisposalAfterScan('0',row['wasteId']),
                                       ),
                                     );
 
@@ -248,8 +268,31 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
                         }),
                       ],
                     ),
+                    //  Spacer(),
+                      SizedBox(
+                        width: responsiveWidth(200),
+                        child: AppButton(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 10,
+                            horizontal: 15,
+                          ),
+                          text: 'Collect All',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => DisposalOverallCollection(formattedList),
+                              ),
+                            );
 
-                  ))])), offlineChild: Offline()));
+                          },
+                          color: Colors.deepOrange,
+                        ),
+                      ),
+
+                  ])))
+              )])
+        ), offlineChild: Offline()));
   }
 }
 

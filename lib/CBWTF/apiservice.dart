@@ -14,22 +14,48 @@ import '../authentication/logout.dart';
 
 class ApiService {
 
+  static Future<List<Map<String, dynamic>>> buildWastePayloadList({
+    required List<dynamic> inputList,
+    required String vehicleNo
+
+  }) async {
+    final prefs = await SharedPreferences.getInstance();
+    final user = prefs.getString('user') ?? '';
+    final userid = prefs.getString('UserId') ?? '';
+    print(user);
+
+    return inputList.map((item) {
+      final String dateStr = item['wasteQntyDateStr']; // e.g. "2025-08-01"
+      final dateParts = dateStr.split('-');        // [2025, 08, 01]
+      final formattedDate = '${dateParts[2]}/${dateParts[1]}/${dateParts[0]}'; // "01/08/2025"
+
+      return {
+        "hcfWasteId": item["hcfWasteId"],
+        "wasteQntyDate": formattedDate,
+        "vehicleUserId": '',
+        "vehicleNo": vehicleNo,
+        "userId": userid,
+        "chassisNo":'',
+        "vehicleAssignDate": formattedDate
+      };
+    }).toList();
+  }
 
 
 
   // Submit form data
-  static Future<List> Get_cbwtf_data(BuildContext context,hcfcode) async {
+  static Future<List> Get_cbwtf_data(BuildContext context,wasteId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('Token') ?? '';
     final response = await http.get(
-      Uri.parse('${baseurl}${GET_BIO_WASTE_DATA}$hcfcode'),
+      Uri.parse('${baseurl}${GET_BIO_WASTE_DETAILS}$wasteId'),
 
        headers: {
     'Authorization': 'Bearer $token',
     'Content-Type': 'application/json',
     },
     ).timeout(const Duration(seconds: 15));
-    print('${baseurl}${GET_BIO_WASTE_DATA}$hcfcode');
+    print('${baseurl}${GET_BIO_WASTE_DATA}$wasteId');
     print(response.body);
 
 
@@ -49,6 +75,9 @@ class ApiService {
   }
 
   static Future<Map<String,dynamic>> AssignVehicle(BuildContext context,body) async {
+
+
+
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('Token') ?? '';
     final response = await http.post(
@@ -60,6 +89,7 @@ class ApiService {
       },
       body: jsonEncode(body)
     ).timeout(const Duration(seconds: 15));
+    print(jsonEncode(body));
     print('${baseurl}${CBWTF_ASSIGN_VEHICLE}');
     print(response.body);
 

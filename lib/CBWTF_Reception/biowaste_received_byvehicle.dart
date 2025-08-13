@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'dart:async';
 
 import 'package:http/http.dart' as http;
+import 'package:mpcb_bio_waste/CBWTF_Reception/overall_Data_collection.dart';
 import 'package:mpcb_bio_waste/Global/dataNotFound.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -206,14 +207,20 @@ class _BiowasteReceivedByvehicleState extends State<BiowasteReceivedByvehicle> {
                     ),
                       Spacer(),
                       SizedBox(
-                        width: responsiveWidth(180),
+                        width: responsiveWidth(200),
                         child: AppButton(
                           padding: const EdgeInsets.symmetric(
-                            vertical: 5,
+                            vertical: 10,
                             horizontal: 15,
                           ),
-                          text: 'Next',
+                          text: 'Collect All',
                           onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => OverallDataCollection(widget.vehicleNo),
+                              ),
+                            );
 
                           },
                           color: Colors.deepOrange,

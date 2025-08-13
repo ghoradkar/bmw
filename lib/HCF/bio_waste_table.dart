@@ -2,12 +2,19 @@ import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
 import 'package:mpcb_bio_waste/Global/dataNotFound.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:http/http.dart' as http;
 
+import '../Global/AppDrawer.dart';
+import '../Global/app_bar.dart';
 import '../Global/app_button.dart';
+import '../Global/constant.dart';
 import '../Global/size_config.dart';
 import '../Global/url.dart';
+import '../network/network_aware.dart';
+import '../network/network_status.dart';
+import '../network/offline.dart';
 import 'bio_waste_summary.dart';
 
 class BioWasteTableScreen extends StatefulWidget {
@@ -22,6 +29,7 @@ class _BioWasteTableScreenState extends State<BioWasteTableScreen> {
   bool isLoading = true;
   bool isEdit = false;
   bool isLoadingColor=false;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   List<ColorCategory> colorCategories = [];
   ColorCategory? selectedColor;
   Map<int, String> wasteColorLookup = {}; // wastecolourId -> Color Name
@@ -129,7 +137,7 @@ class _BioWasteTableScreenState extends State<BioWasteTableScreen> {
         final List<dynamic> data = jsonResponse['data'] ?? [];
 
         // Initialize grouped summary
-        final Map<String, Map<String, int>> summary = {
+        final Map<String, Map<String, double>> summary = {
           'Yellow': {'quantity': 0, 'bags': 0},
           'Red': {'quantity': 0, 'bags': 0},
           'Blue': {'quantity': 0, 'bags': 0},
@@ -143,8 +151,8 @@ class _BioWasteTableScreenState extends State<BioWasteTableScreen> {
           // Skip unknown colors
           if (colorName == null || !summary.containsKey(colorName)) continue;
 
-          final quantity = (item['totalQuantityBagKg'] ?? 0) as num;
-          final bags = (item['totalNoOfBags'] ?? 0) as num;
+          final quantity = (item['totalQuantityBagKg'] ?? 0) as double;
+          final bags = (item['totalNoOfBags'] ?? 0) as double;
 
           summary[colorName]!['quantity'] =
               (summary[colorName]!['quantity'] ?? 0) + quantity.toInt();
@@ -160,6 +168,8 @@ class _BioWasteTableScreenState extends State<BioWasteTableScreen> {
             'bags': entry.value['bags'],
           };
         }).toList();
+        print('summary');
+        print(summaryData);
       } else {
         summaryData = [];
       }
@@ -184,13 +194,44 @@ class _BioWasteTableScreenState extends State<BioWasteTableScreen> {
   Widget build(BuildContext context) {
     SizeConfig().init(context);
 
-    return Scaffold(
-      body:
+    return StreamProvider<NetworkStatus>(
+      create: (context) =>
+      NetworkStatusService().networkStatusController.stream,
+      initialData: NetworkStatus.Online,
+      child: NetworkAwareWidget(
+          onlineChild: Scaffold(
+              key: _scaffoldKey,
+              drawer: AppDrawer(),
+              body: Stack(
+                children: [
+                /// Custom Gradient AppBar
+                mAppBar(
+                scTitle: 'HCF Bio Waste Data',
+                centerTile: true,
+                  onLeadingIconClick: () => Navigator.pop(context),
+                showLeading: true,
+
+              ),
+
+              /// Body with tabs
+              Positioned.fill(
+                  top: responsiveHeight(110),
+                  bottom: responsiveHeight(0),// offset to appear below custom app bar
+                  child: Container(
+                      padding:const EdgeInsets.all(15) ,
+
+                      decoration: BoxDecoration(
+                        color: kWhiteColor,
+                        borderRadius: const BorderRadius.only(
+                          topRight: Radius.circular(40),
+                          topLeft: Radius.circular(40),
+                        ),
+                      ),
+                      child:
+
           isLoading || isLoadingColor
               ? const Center(child: CircularProgressIndicator())
-              : summaryData.isEmpty||summaryData==null?Datanotfound():Padding(
-                padding: const EdgeInsets.all(13.0),
-                child: SingleChildScrollView(
+              : summaryData.isEmpty||summaryData==null?Datanotfound(): SingleChildScrollView(
                   child: Column(
                     children: [
                       Table(
@@ -241,7 +282,7 @@ class _BioWasteTableScreenState extends State<BioWasteTableScreen> {
                               Padding(
                                 padding: EdgeInsets.all(8),
                                 child: Text(
-                                  "Total Quantity (kg/Annum)",
+                                  "Total Weight (kg)",
                                   style: TextStyle(
                                     color: Colors.white,
                                     fontWeight: FontWeight.bold,
@@ -351,7 +392,7 @@ class _BioWasteTableScreenState extends State<BioWasteTableScreen> {
 
                                     onChanged: (val) {
                                       summaryData[i]['quantity'] =
-                                          int.tryParse(val) ?? 0;
+                                          double.tryParse(val) ?? 0;
                                     },
                                   ),
                                 ),
@@ -394,7 +435,7 @@ class _BioWasteTableScreenState extends State<BioWasteTableScreen> {
                                     ),
                                     onChanged: (val) {
                                       summaryData[i]['bags'] =
-                                          int.tryParse(val) ?? 0;
+                                          double.tryParse(val) ?? 0;
                                     },
                                   ),
                                 ),
@@ -441,6 +482,7 @@ class _BioWasteTableScreenState extends State<BioWasteTableScreen> {
                   ),
                 ),
               ),
-    );
+    )])),
+                  offlineChild: Offline()));
   }
 }

@@ -46,13 +46,14 @@ class _ReceptionAfterScanState extends State<ReceptionAfterScan> {
       final token = prefs.getString('Token') ?? '';
 
       final response = await http.get(
-        Uri.parse('${baseurl}${GET_BARCODE_DATA}${widget.barcode}'),
+        Uri.parse('${baseurl}${SCAN_QR_CODE}${widget.barcode}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
-      print('${baseurl}${GET_BARCODE_DATA}${widget.barcode}');
+      print('${baseurl}${SCAN_QR_CODE}${widget.barcode}');
+      print(response.body);
       if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
         setState(() {
@@ -384,6 +385,7 @@ class _ReceptionAfterScanState extends State<ReceptionAfterScan> {
                   if (_receivedQtyControllers[index].text.isEmpty) {
                     value_entered[index] = false;
                   }
+                  else{value_entered[index]=true;}
                 }),
             keyboardType: TextInputType.number,
             decoration: InputDecoration(
@@ -460,15 +462,15 @@ class _ReceptionAfterScanState extends State<ReceptionAfterScan> {
 
   Color _getColorFromType(String type) {
     switch (type) {
-      case 'R':
+      case 'Red':
         return Colors.red;
-      case 'Y':
+      case 'Yellow':
         return Colors.yellow;
-      case 'B':
+      case 'Blue':
         return Colors.blue;
-      case 'W':
+      case 'White':
         return Colors.white;
-      case 'G':
+      case 'Green':
         return Colors.green;
       default:
         return Colors.grey.shade300;

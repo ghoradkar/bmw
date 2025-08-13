@@ -217,7 +217,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     } catch (e) {
-      _showError('Login failed: ${e.toString()}');
+      _showError('Login failed: Please Enter Valid Credentials');
     }
   }
   void _redirectToRoleScreen(String? role) {
