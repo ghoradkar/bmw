@@ -50,6 +50,7 @@ class AppRoutes {
   static const String waste_received_byvehicle='/waste_received_byvehicle';
   static const String disposal_scan='/disposal_scan';
   static const String disposal_after_scan='/disposal_after_scan';
+
   static const String logout='logout';
 
 
@@ -105,11 +106,11 @@ class AppRoutes {
           );
         case barcode_scanner:
           return MaterialPageRoute(
-            builder: (_) => BarcodeScannerScreen({}),
+            builder: (_) => BarcodeScannerScreen({},[],[],[]),
           );
         case after_Scan:
           return MaterialPageRoute(
-            builder: (_) => AfterScanScreen(barcode: '',detail: {},),
+            builder: (_) => AfterScanScreen(barcode: '',rows:[],receivedQtyControllers:[],value_entered:[],detail: {},),
           );
         case vehicle_screen:
           return MaterialPageRoute(
@@ -121,7 +122,7 @@ class AppRoutes {
           );
         case reception_scan:
           return MaterialPageRoute(
-            builder: (_) => ReceptionScanner(),
+            builder: (_) => ReceptionScanner([],[],[]),
           );
         case view_detail_afterscan:
           return MaterialPageRoute(

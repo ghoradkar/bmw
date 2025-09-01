@@ -209,17 +209,17 @@ class _GetBioWasteDataState extends State<GetBioWasteData> {
                  obscureText: false,
                  hintText: 'Assign Vehicle',
                  validator: (value) {
-                   if (value == null || value.isEmpty) {
+                   if (value == null || value.isEmpty ||value.toString().trim().isEmpty) {
                      return 'Enter vehicle number';
                    }
 
-                   // Optional: Add pattern match for format like MH12AB1234
-                   final pattern = r'^[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}$';
-                   final regExp = RegExp(pattern);
-
-                   if (!regExp.hasMatch(value.toUpperCase().replaceAll(' ', ''))) {
-                     return 'Enter valid vehicle number (e.g., MH12AB1234)';
-                   }
+                   // // Optional: Add pattern match for format like MH12AB1234
+                   // final pattern = r'^[A-Z]{2}[0-9]{2}[A-Z]{1,2}[0-9]{4}$';
+                   // final regExp = RegExp(pattern);
+                   //
+                   // if (!regExp.hasMatch(value.toUpperCase().replaceAll(' ', ''))) {
+                   //   return 'Enter valid vehicle number (e.g., MH12AB1234)';
+                   // }
 
                    return null;
                  },

@@ -1,16 +1,13 @@
 import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:open_file/open_file.dart';
+import 'package:path_provider/path_provider.dart';
+import 'dart:io';
+import 'package:intl/intl.dart';
 
 import '../Global/app_bar.dart';
 import '../Global/constant.dart';
 import '../Global/size_config.dart';
-
-import 'dart:io';
-import 'package:flutter/material.dart';
-
-import 'package:path_provider/path_provider.dart';
-// adjust import
 
 class BarcodeImageScreen extends StatelessWidget {
   final Uint8List imageBytes;
@@ -26,26 +23,31 @@ class BarcodeImageScreen extends StatelessWidget {
 
   Future<void> _openPdf(BuildContext context) async {
     final dir = await getTemporaryDirectory();
-    final filePath = '${dir.path}/barcode.pdf';
+
+    // Create unique file name using timestamp
+    final timestamp = DateFormat('yyyyMMdd_HHmmss').format(DateTime.now());
+    final filePath = '${dir.path}/barcode_$timestamp.pdf';
+
     final file = File(filePath);
     await file.writeAsBytes(imageBytes);
     await OpenFile.open(filePath);
-    Navigator.pop(context); // Optional: close this screen after opening PDF
+
+    Navigator.pop(context); // Optional: close screen after opening PDF
   }
 
   @override
   Widget build(BuildContext context) {
     SizeConfig().init(context);
 
-    // If PDF, open it and show loading spinner
+    // If PDF, open it automatically and show a spinner
     if (_isPdf(imageBytes)) {
-      _openPdf(context); // handle in background
+      _openPdf(context); // Handle asynchronously
       return const Scaffold(
         body: Center(child: CircularProgressIndicator()),
       );
     }
 
-    // Else show image
+    // Else, show the barcode as an image
     return Scaffold(
       body: Stack(
         children: [

@@ -4,6 +4,7 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
 import 'package:mpcb_bio_waste/Global/app_button.dart';
 import 'package:mpcb_bio_waste/Global/app_textfield.dart';
 import 'package:mpcb_bio_waste/Global/constant.dart';
@@ -16,6 +17,7 @@ import 'package:package_info_plus/package_info_plus.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
+import '../CBWTF_Disposal/disposal_overall_colection.dart';
 import '../Global/app_routes.dart';
 import 'forget_password.dart';
 
@@ -33,6 +35,9 @@ class _LoginScreenState extends State<LoginScreen> {
   bool keepMeSignedIn = true;
   bool isLoading = false;
   String? userRole;
+  bool _isLoading = true;
+  List<Map<String, dynamic>> _tableData = [];
+  List <Map<String, dynamic>> formattedList=[];
 
   String? osVersion;
   final secureStorage = FlutterSecureStorage();
@@ -41,7 +46,14 @@ class _LoginScreenState extends State<LoginScreen> {
     await secureStorage.write(key: 'username', value: username);
     await secureStorage.write(key: 'password', value: password);
   }
-
+  String formatDate(String dateStr) {
+    try {
+      DateTime parsedDate = DateTime.parse(dateStr);
+      return DateFormat('dd/MM/yyyy').format(parsedDate);
+    } catch (e) {
+      return 'Invalid date';
+    }
+  }
   Future<void> clearCredentials() async {
     await secureStorage.delete(key: 'username');
     await secureStorage.delete(key: 'password');
@@ -159,6 +171,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // 🌐 API Call
       final response = await http.post(uri, headers: headers, body: body);
+      print(response.statusCode);
+      print(response.body);
 
       // ✅ Handle success response
       if (response.statusCode == 200) {
@@ -196,7 +210,8 @@ class _LoginScreenState extends State<LoginScreen> {
 
         // 🔐 Redirect
         if (user['floginPwreset'] == 'N') {
-          _redirectToRoleScreen(userRole);
+          fetchAssignedHCFData();
+          _redirectToRoleScreen(userRole,user["bulkDataSaveFlag"]);
         } else {
           Navigator.push(
             context,
@@ -217,16 +232,54 @@ class _LoginScreenState extends State<LoginScreen> {
         }
       }
     } catch (e) {
+
       _showError('Login failed: Please Enter Valid Credentials');
     }
   }
-  void _redirectToRoleScreen(String? role) {
+  // void _redirectToRoleScreen(String? role,bulk) {
+  //   final routeMap = {
+  //     'HCF User': AppRoutes.hcf_biowasteScreen,
+  //     'CBWT User': AppRoutes.nearby_hcf,
+  //   //  'CBWT User': AppRoutes.nearby_hcf,
+  //     'CBWT Reception User': AppRoutes.vehicle_screen,
+  //
+  //     'Disposal User': bulk=='N'?AppRoutes.waste_received_byvehicle: Navigator.push(
+  //   context,
+  //   MaterialPageRoute(
+  //   builder: (_) => DisposalOverallCollection(formattedList),
+  //   ),
+  //   ),
+  //     'Vehicle  User': AppRoutes.vehicle_nearby_hcf,
+  //   };
+  //
+  //   final route = routeMap[role];
+  //   if (route != null) {
+  //     Navigator.of(context).popAndPushNamed(route);
+  //   } else {
+  //     _showError('Unknown User !!');
+  //   }
+  // }
+  void _redirectToRoleScreen(String? role, bulk) {
+    print('bulk');
+    print(bulk);
+    if (role == 'Disposal User') {
+      if (bulk == 'N') {
+        Navigator.of(context).popAndPushNamed(AppRoutes.waste_received_byvehicle);
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DisposalOverallCollection(formattedList),
+          ),
+        );
+      }
+      return;
+    }
+
     final routeMap = {
       'HCF User': AppRoutes.hcf_biowasteScreen,
       'CBWT User': AppRoutes.nearby_hcf,
-    //  'CBWT User': AppRoutes.nearby_hcf,
       'CBWT Reception User': AppRoutes.vehicle_screen,
-      'Disposal User': AppRoutes.waste_received_byvehicle,
       'Vehicle  User': AppRoutes.vehicle_nearby_hcf,
     };
 
@@ -237,6 +290,67 @@ class _LoginScreenState extends State<LoginScreen> {
       _showError('Unknown User !!');
     }
   }
+
+  List<Map<String, dynamic>> transformResponse(
+      List responseList,
+      {required int userId}) {
+    return responseList.map((item) {
+      return {
+        "cbwtfRecpDispIds": item["cbwtfRecpDispIds"],
+        "totalNoOfBags": item["totalNoOfBags"],
+        "totalQuantityBagKg": item["totalQuantityBagKg"],
+        "pickupNoOfbag": item["pickupNoOfbag"],
+        "pickupTotalQuantityBagCbwtfKg": item["pickupTotalQuantityBagCbwtfKg"],
+        "lookupDetIdCategory": 3,
+        "userId": userId
+      };
+    }).toList();
+  }
+  Future<void> fetchAssignedHCFData() async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('Token') ?? '';
+      final UserId = prefs.getString('UserId');
+
+      final response = await http.get(
+        Uri.parse('${baseurl}${GET_DISPOSAL_DATA}fromDate=${DateTime.now().toString().substring(0,10)}&toDate=${DateTime.now().toString().substring(0,10)}&userId=$UserId'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },);
+      print('${baseurl}${GET_DISPOSAL_DATA}fromDate=${DateTime.now().toString().substring(0,10)}&toDate=${DateTime.now().toString().substring(0,10)}&userId=$UserId');
+      print(response.body);
+      if (response.statusCode == 200) {
+        Map<String,dynamic>value = jsonDecode(response.body);
+        List data=value['data']==null?[]:value['data'];
+        formattedList=transformResponse(data, userId: int.parse(UserId!));
+        print(formattedList);
+
+
+
+
+        setState(() {
+          _tableData = data.map((e) => {
+            'wasteId':e['hcfWasteId'],
+            'date': formatDate(e['assignDateCbwtf']),
+            'name': e['vehicleNo'],
+            'bags': e['totalNoOfBags'],
+            'waste': e['totalQuantityBagKg'],
+          }).toList();
+          _isLoading = false;
+        });
+        print(_tableData);
+      } else {
+        // handle error
+        setState(() => _isLoading = false);
+      }}
+    catch (e) {
+      print('Error fetching HCFs: $e');
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Error fetching HCFs: $e'), backgroundColor: Colors.red),
+      );
+    }}
+
 
   void _showError(String message) {
     if (context.mounted) {

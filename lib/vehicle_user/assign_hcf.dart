@@ -154,7 +154,7 @@ class _AssignedHCFScreenState extends State<AssignedHCFScreen> {
     topLeft: Radius.circular(40),
     ),
     ),
-    child:
+    child:SingleChildScrollView(child:
     _isLoading?Center(child:CircularProgressIndicator(color: kPrimaryColor,) ,):
     _tableData.isEmpty||_tableData==null?Datanotfound():Table(
       border: TableBorder.all(color: Colors.grey.shade400, width: 1,
@@ -221,7 +221,7 @@ class _AssignedHCFScreenState extends State<AssignedHCFScreen> {
       ],
     ),
 
-    ))])), offlineChild: Offline()));
+    )))])), offlineChild: Offline()));
   }
 }
 

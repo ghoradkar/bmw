@@ -254,7 +254,10 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
     child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(10),
-          child: isLoading?Center(child: CircularProgressIndicator(color: kPrimaryColor,),):datanotfound?Datanotfound():Column(
+          child: isLoading?Center(child: CircularProgressIndicator(color: kPrimaryColor,),) :datanotfound?
+          SizedBox(
+              height: 600,width: 500,
+              child:Datanotfound()):Column(
             children: [
               /// Form Box
               Container(

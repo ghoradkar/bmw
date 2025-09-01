@@ -55,6 +55,7 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
       macId: "00-14-22-01-23-45",
       ipAddress: "192.168.1.1",
     );
+    print('payload');
     print(jsonEncode(payload));
 
 
@@ -76,6 +77,9 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
         final jsonResponse = jsonDecode(response.body);
         if (jsonResponse['status'] == 'success') {
           final data = jsonResponse['data'];
+          print('data');
+          print(data.length);
+          print(data);
           widget.tableData.clear();
           groupedData.clear();
 

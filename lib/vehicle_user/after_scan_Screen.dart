@@ -17,13 +17,17 @@ import '../authentication/logout.dart';
 import '../network/network_aware.dart';
 import '../network/network_status.dart';
 import '../network/offline.dart';
+import 'barcode_scanner_screen.dart';
 
 class AfterScanScreen extends StatefulWidget {
   final String barcode;
+  final List<dynamic>rows;
+  final List<TextEditingController>receivedQtyControllers;
+  final List<bool>value_entered;
 
   final Map<String, dynamic> detail;
 
-  const AfterScanScreen({required this.barcode, required this.detail});
+  const AfterScanScreen({required this.barcode, required this.rows,required this.receivedQtyControllers,required this.value_entered, required this.detail});
 
   @override
   State<AfterScanScreen> createState() => _AfterScanScreenState();
@@ -33,38 +37,106 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
   List<dynamic> rows = [];
   bool load = true;
   bool save = false;
-  List<TextEditingController> _receivedQtyControllers = [];
+  List<TextEditingController> receivedQtyControllers = [];
   List<bool> value_entered = [];
 
   @override
   void initState() {
     super.initState();
-    fetchBarcodeDetails();
+
+    // Initialize rows
+    rows = widget.rows;
+
+    // Create controllers, copy existing values if present
+    receivedQtyControllers = List.generate(
+      rows.length,
+          (index) {
+        final controller = TextEditingController();
+        final value = widget.receivedQtyControllers.isNotEmpty
+            ? widget.receivedQtyControllers[index].text
+            : null;
+
+        if (value != null && value.isNotEmpty) {
+          controller.text = value;
+        }
+        return controller;
+      },
+    );
+
+    // Initialize value_entered flags
+    value_entered = List.generate(
+      rows.length,
+          (index) {
+        final value = widget.value_entered.isNotEmpty
+            ? widget.value_entered[index]
+            : false;
+        return value;
+      },
+    );
+
+    print(rows);
+    print(widget.barcode);
   }
 
-  Future<void> fetchBarcodeDetails() async {
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // After widget is in the tree, safe to access ScaffoldMessenger / context
+    if (rows.isEmpty) {
+      fetchBarcodeDetails(widget.barcode);
+    } else {
+      bool found = false;
+      for (int i = 0; i < rows.length; i++) {
+        if (rows[i]['barcodeNo'] == widget.barcode) {
+          found = true;
+          break;
+        }
+      }
+
+      if (found) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Barcode Already Scanned')),
+          );
+        });
+        setState(() {
+          load=false;});
+      } else {
+        fetchBarcodeDetails(widget.barcode);
+      }
+    }
+  }
+  Future<void> fetchBarcodeDetails(barcode) async {
+
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('Token') ?? '';
 
       final response = await http.get(
-        Uri.parse('${baseurl}${GET_QR_DATA}${widget.barcode}'),
+        Uri.parse('${baseurl}${GET_QR_DATA}${barcode}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
-      print('${baseurl}${GET_QR_DATA}${widget.barcode}');
+      print('${baseurl}${GET_QR_DATA}${barcode}');
       print(response.body);
       if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
         setState(() {
-          rows = data['data'];
-          _receivedQtyControllers = List.generate(
-            rows.length,
-            (_) => TextEditingController(),
-          );
-          value_entered = List.generate(rows.length, (_) => false);
+        //  rows=data['data'];
+          for(int i=0;i<data['data'].length;i++){
+            rows.add(data['data'][i]);
+            receivedQtyControllers.add(TextEditingController());
+            value_entered.add(false);
+          }
+
+          // receivedQtyControllers = List.generate(
+          //   rows.length,
+          //   (_) => TextEditingController(),
+          // );
+          // value_entered = List.generate(rows.length, (_) => false);
           load = false;
         });
       } else {
@@ -94,20 +166,23 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
       final body = List.generate(rows.length, (i) {
         final item = rows[i];
         final receivedQty =
-            double.tryParse(_receivedQtyControllers[i].text) ?? 0.0;
+            double.tryParse(receivedQtyControllers[i].text) ?? 0.0;
         final pickupQty =
             (item['pickupTotalQuantityBagCbwtfKg'] ?? 0).toDouble();
         final pickupBags = item['pickupNoOfbag'] ?? 0;
 
         return {
           "hcfWasteVehicleAssignId": item['hcfWasteVehicleAssignId'],
-          "hcfWasteQntyId": item['hcfWasteQntyId'],
+          "hcfWasteQntyDetId":item["hcfWasteQntyDetId"],
+          "hcfWasteQntyId": item["wasteQtyId"],
+          "hcfWasteId":item['hcfWasteId'],
           "totalNoOfBags": item['totalNoOfBags'] ?? 0,
           "totalQuantityBagKg": item['totalQuantityBagKg'] ?? 0,
-          "vehicleNo": item['vehicleNo'],
+          "pickupTotalQuantityBagCbwtfKg":pickupQty,
+          "vehicleNo": userId,
           "assignDate": item['assignDateCbwtf'],
           "pickupNoOfBags": pickupBags,
-          "pickupTotalQuantityBagKg": pickupQty,
+          "pickupTotalQuantityBagKg": receivedQty,
           "pickupDate": nowUtc,
           "differenceInQty": receivedQty - pickupQty,
           "diffrenceInBag": pickupBags - (item['receivedBag'] ?? 0),
@@ -119,6 +194,7 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
           "createdDate": nowUtc,
         };
       });
+      print(rows.length);
       print(jsonEncode(body));
 
       final response = await http.post(
@@ -155,14 +231,14 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
   }
 
   double _getDiff(int index, double pickupQty) {
-    final receivedText = _receivedQtyControllers[index].text;
+    final receivedText = receivedQtyControllers[index].text;
     final received = double.tryParse(receivedText) ?? 0.0;
-    return (received - pickupQty);
+    return ( pickupQty-received);
   }
 
   @override
   void dispose() {
-    for (var controller in _receivedQtyControllers) {
+    for (var controller in receivedQtyControllers) {
       controller.dispose();
     }
     super.dispose();
@@ -183,6 +259,40 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
             scTitle: 'Bio Waste Data Details',
             centerTile: false,
             showLeading: true,
+            showActions: true,
+            actions: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: IconButton(
+                  onPressed: () async {
+
+                    final scannedData = await Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>  BarcodeScannerScreen(widget.detail,rows,receivedQtyControllers,value_entered),
+                      ),
+                    );
+
+                    if (scannedData != null) {
+                      setState(() {
+                        final alreadyExists = rows.any(
+                              (item) => item['barcode'] == scannedData['barcode'],
+                        );
+
+                        if (!alreadyExists) {
+                          fetchBarcodeDetails(scannedData);
+                          // rows.add(scannedData);  // if you want to append it
+                        }
+                      });
+                    }
+                    },
+
+
+
+                  icon: const Icon(Icons.document_scanner_outlined),
+                ),
+              ),
+            ],
           ),
           Positioned.fill(
             top: responsiveHeight(110),
@@ -230,11 +340,11 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
 
                                         for (
                                           int i = 0;
-                                          i < _receivedQtyControllers.length;
+                                          i < receivedQtyControllers.length;
                                           i++
                                         ) {
                                           final text =
-                                              _receivedQtyControllers[i].text
+                                              receivedQtyControllers[i].text
                                                   .trim();
 
                                           if (text.isEmpty) {
@@ -261,7 +371,8 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
                                         }
 
                                         // All values are filled, call save method
-                                        SaveWaste();
+                                        showConfirmation(context);
+                                       // SaveWaste();
                                       },
                                       color: Colors.deepOrange,
                                     ),
@@ -422,10 +533,10 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
         Padding(
           padding: const EdgeInsets.all(6),
           child: TextFormField(
-            controller: _receivedQtyControllers[index],
+            controller: receivedQtyControllers[index],
             onChanged:
                 (_) => setState(() {
-                  if (_receivedQtyControllers[index].text.isEmpty) {
+                  if (receivedQtyControllers[index].text.isEmpty) {
                     value_entered[index] = false;
                   }
                 }),
@@ -455,7 +566,7 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
             onPressed: () {
               setState(() {
                 print(value_entered[index]);
-                if (_receivedQtyControllers[index].text.isEmpty) {
+                if (receivedQtyControllers[index].text.isEmpty) {
                   setState(() {
                     value_entered[index] = false;
                   });
@@ -549,6 +660,12 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
                     ),
                     text: 'Ok',
                     onPressed: () {
+                      setState(() {
+                        rows.clear();
+                        widget.rows.clear();
+                        print(rows.length);
+                      });
+
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(
@@ -567,4 +684,76 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
       },
     );
   }
+  void showConfirmation(BuildContext context) {
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                Image.asset(success),
+                const SizedBox(height: 24),
+                const Text(
+                  "Do You Want To Save ?",
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 24),
+               Row(
+                 mainAxisAlignment: MainAxisAlignment.spaceAround,
+                   children:[ SizedBox(
+                  width: responsiveWidth(125),
+                  child: AppButton(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 5,
+                      horizontal: 15,
+                    ),
+                    text: 'Yes',
+                    onPressed: () {
+                      SaveWaste();
+                      // Navigator.pushAndRemoveUntil(
+                      //   context,
+                      //   MaterialPageRoute(
+                      //     builder: (context) => AssignedHCFScreen(),
+                      //   ),
+                      //       (Route<dynamic> route) => false,
+                      // );
+                    },
+                    color: Colors.deepOrange,
+                  ),
+                ),
+                SizedBox(
+                  width: responsiveWidth(125),
+                  child: AppButton(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 5,
+                      horizontal: 15,
+                    ),
+                    text: 'Cancel',
+                    onPressed: () {
+                      Navigator.pop(context);
+                      // Navigator.pushAndRemoveUntil(
+                      //   context,
+                      //   MaterialPageRoute(
+                      //     builder: (context) => AssignedHCFScreen(),
+                      //   ),
+                      //       (Route<dynamic> route) => false,
+                      // );
+                    },
+                    color: Colors.grey,
+                  ),
+                ),])
+              ],
+            ),
+          ),
+        );
+      },
+    );}
 }

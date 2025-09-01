@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:mpcb_bio_waste/CBWTF_Reception/reception_Scanner.dart';
 import 'package:mpcb_bio_waste/CBWTF_Reception/vehicle_list.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -21,7 +22,10 @@ import '../network/offline.dart';
 class ReceptionAfterScan extends StatefulWidget {
   final String barcode;
 
-  const ReceptionAfterScan({required this.barcode});
+  final List<dynamic>rows;
+  final List<TextEditingController>receivedQtyControllers;
+  final List<bool>value_entered;
+  const ReceptionAfterScan({required this.barcode,required this.rows,required this.receivedQtyControllers,required this.value_entered});
 
   @override
   State<ReceptionAfterScan> createState() => _ReceptionAfterScanState();
@@ -37,32 +41,31 @@ class _ReceptionAfterScanState extends State<ReceptionAfterScan> {
   double _getDiff(int index, double pickupQty) {
     final receivedText = _receivedQtyControllers[index].text;
     final received = double.tryParse(receivedText) ?? 0.0;
-    return (received - pickupQty);
+    return ( pickupQty-received);
   }
 
-  Future<void> fetchBarcodeDetails() async {
+  Future<void> fetchBarcodeDetails(scannedData) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('Token') ?? '';
 
       final response = await http.get(
-        Uri.parse('${baseurl}${SCAN_QR_CODE}${widget.barcode}'),
+        Uri.parse('${baseurl}${SCAN_QR_CODE}${scannedData}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
-      print('${baseurl}${SCAN_QR_CODE}${widget.barcode}');
+      print('${baseurl}${SCAN_QR_CODE}${scannedData}');
       print(response.body);
       if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
         setState(() {
-          rows = data['data'];
-          _receivedQtyControllers = List.generate(
-            rows.length,
-            (_) => TextEditingController(),
-          );
-          value_entered = List.generate(rows.length, (_) => false);
+          for(int i=0;i<data['data'].length;i++){
+            rows.add(data['data'][i]);
+            _receivedQtyControllers.add(TextEditingController());
+            value_entered.add(false);
+          }
           load = false;
         });
       } else {
@@ -95,7 +98,7 @@ class _ReceptionAfterScanState extends State<ReceptionAfterScan> {
             double.tryParse(_receivedQtyControllers[i].text.trim()) ?? 0.0;
 
         final pickupQty =
-        (item['pickupTotalQuantityBagCbwtfKg'] ?? 0).toDouble();
+        (item['puckupQty'] ?? 0).toDouble();
         final pickupBags = item['pickupNoOfbag'] ?? 0;
 
         return {
@@ -110,26 +113,26 @@ class _ReceptionAfterScanState extends State<ReceptionAfterScan> {
           "barcodeNo": item['barcodeNo'],
           "nameOfHcf": item['nameOfHcf'],
         "totalNoOfBags": pickupBags,
-        "totalQuantityBagKg": pickupQty,
+        "totalQuantityBagKg": item['totalQuantityBagKg'],
         "hcfName": item['nameOfHcf'],
         "userId": userId,
           "wastecolourId": item['wastecolourId'],
           "wasteQtyId": item['wasteQtyId'],
           "colourType": item['colourType'],
         "receivedBag": pickupBags,
-        "receivedQty": pickupQty,
+        "receivedQty": receivedQty,
         "pickupNoOfbag": pickupBags,
-        "puckupQty": pickupQty,
+        "puckupQty": receivedQty,
         "differenceInQty": pickupQty - receivedQty,
           "hcfWasteVehicleAssignId": item['hcfWasteVehicleAssignId'],
         "pickupTotalQuantityBagKg": pickupQty,
         "diffrenceInBag": pickupBags - (item['receivedBag'] ?? 0),
         "differenceInQtyCbwtf":  pickupQty - receivedQty,
-        "differenceInQtyCbwtfDisposal": pickupQty - receivedQty,
+        "differenceInQtyCbwtfDisposal": 0,
           "assignDateCbwtf": item['assignDateCbwtf'],
           "assignDateCbwtfDisposal": nowUtc,
-        "pickupTotalQuantityBagCbwtfKg": pickupQty,
-        "pickupTotalQuantityBagCbwtfDisposalKg":pickupQty
+        "pickupTotalQuantityBagCbwtfKg":receivedQty,
+        "pickupTotalQuantityBagCbwtfDisposalKg":0
 
 
 
@@ -139,12 +142,12 @@ class _ReceptionAfterScanState extends State<ReceptionAfterScan> {
       print(jsonEncode(body));
 
       final response = await http.post(
-        Uri.parse('$baseurl$SAVE_WASTE_DISPOSAL$userId'),
+        Uri.parse('$baseurl$SAVE_RECEPTION_DATA$userId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode(body),
+        body: jsonEncode(body)
       );
 
       print('$baseurl$SAVE_WASTE_DISPOSAL$userId');
@@ -182,7 +185,70 @@ class _ReceptionAfterScanState extends State<ReceptionAfterScan> {
   @override
   void initState() {
     super.initState();
-    fetchBarcodeDetails();
+
+    // Initialize rows
+    rows = widget.rows;
+
+    // Create controllers, copy existing values if present
+    _receivedQtyControllers = List.generate(
+      rows.length,
+          (index) {
+        final controller = TextEditingController();
+        final value = widget.receivedQtyControllers.isNotEmpty
+            ? widget.receivedQtyControllers[index].text
+            : null;
+
+        if (value != null && value.isNotEmpty) {
+          controller.text = value;
+        }
+        return controller;
+      },
+    );
+
+    // Initialize value_entered flags
+    value_entered = List.generate(
+      rows.length,
+          (index) {
+        final value = widget.value_entered.isNotEmpty
+            ? widget.value_entered[index]
+            : false;
+        return value;
+      },
+    );
+
+    print(rows);
+    print(widget.barcode);
+  }
+
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
+
+    // After widget is in the tree, safe to access ScaffoldMessenger / context
+    if (rows.isEmpty) {
+      fetchBarcodeDetails(widget.barcode);
+    } else {
+      bool found = false;
+      for (int i = 0; i < rows.length; i++) {
+        if (rows[i]['barcodeNo'] == widget.barcode) {
+          found = true;
+          break;
+        }
+      }
+
+      if (found) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Barcode Already Scanned')),
+          );
+        });
+        setState(() {
+          load=false;});
+      } else {
+        fetchBarcodeDetails(widget.barcode);
+      }
+    }
+
   }
   @override
   Widget build(BuildContext context) {
@@ -200,6 +266,40 @@ class _ReceptionAfterScanState extends State<ReceptionAfterScan> {
             scTitle: 'Bio Waste Received By Vehicle',
             centerTile: false,
             showLeading: true,
+            showActions: true,
+            actions: [
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: 10),
+                child: IconButton(
+                  onPressed: () async {
+
+                    final scannedData = await Navigator.pushReplacement(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>  ReceptionScanner(rows,_receivedQtyControllers,value_entered)
+                      ),
+                    );
+
+                    if (scannedData != null) {
+                      setState(() {
+                        final alreadyExists = rows.any(
+                              (item) => item['barcode'] == scannedData['barcode'],
+                        );
+
+                        if (!alreadyExists) {
+                          fetchBarcodeDetails(scannedData);
+                          // rows.add(scannedData);  // if you want to append it
+                        }
+                      });
+                    }
+                  },
+
+
+
+                  icon: const Icon(Icons.document_scanner_outlined),
+                ),
+              ),
+            ],
           ),
 
           /// Body with tabs
@@ -357,7 +457,7 @@ class _ReceptionAfterScanState extends State<ReceptionAfterScan> {
     final barcode = item['barcodeNo'] ?? '--';
     final colourType = item['colourType'] ?? 'G';
     final pickupQty = (item['totalQuantityBagKg'] ?? 0).toDouble();
-    final byvehicle = (item['pickupTotalQuantityBagKg'] ?? 0).toDouble();
+    final byvehicle = (item['puckupQty'] ?? 0).toDouble();
 
 
     final color = _getColorFromType(colourType);

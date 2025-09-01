@@ -13,8 +13,11 @@ import 'package:mpcb_bio_waste/vehicle_user/after_scan_Screen.dart';
 
 class BarcodeScannerScreen extends StatefulWidget {
   final Map<String, dynamic> detail;
+ final  List<dynamic> rows;
+ final List<TextEditingController>_receivedQtyControllers;
+ final List<bool>value_entered;
 
-  const BarcodeScannerScreen(this.detail, {super.key});
+  const BarcodeScannerScreen(this.detail, this.rows,this._receivedQtyControllers,this.value_entered,{super.key});
 
   @override
   State<BarcodeScannerScreen> createState() => _BarcodeScannerScreenState();
@@ -41,12 +44,33 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
         isScanned = true;
         controller?.pauseCamera();
 
+        final scannedCode = scanData.code ?? '';
+
+        // Make sure rows is initialized
+
+
+        // ✅ Check if this barcode already exists in rows
+        // final alreadyExists = widget.rows.any((row) => row['barcode'] == scannedCode);
+        //
+        // if (!alreadyExists) {
+        //   widget.rows.add({
+        //     'barcode': scannedCode,
+        //     'qtyByHCF': '', // you can set default/empty values
+        //     'quantityReceived': '',
+        //     'difference': '',
+        //   });
+        // }
+
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
             builder: (context) => AfterScanScreen(
-              barcode: scanData.code ?? '',
+              barcode: scannedCode,
+              rows: widget.rows,
+              receivedQtyControllers: widget._receivedQtyControllers,
+              value_entered: widget.value_entered,
               detail: widget.detail,
+
             ),
           ),
         );

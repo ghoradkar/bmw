@@ -27,6 +27,7 @@ class _BioWasteDetailScreenState extends State<BioWasteDetailScreen> {
   List<dynamic>? wasteList;
   bool isLoading = true;
 
+
   @override
   void initState() {
     super.initState();
@@ -60,7 +61,7 @@ class _BioWasteDetailScreenState extends State<BioWasteDetailScreen> {
                     Navigator.push(
                       context,
                       MaterialPageRoute(
-                        builder: (context) => BarcodeScannerScreen(widget.detail),
+                        builder: (context) => BarcodeScannerScreen(widget.detail,[],[],[]),
                       ),
                     );
 

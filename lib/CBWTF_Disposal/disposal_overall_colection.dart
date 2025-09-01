@@ -37,7 +37,7 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
   double _getDiff(int index, double pickupQty) {
     final receivedText = _receivedQtyControllers[index].text;
     final received = double.tryParse(receivedText) ?? 0.0;
-    return (received - pickupQty);
+    return (pickupQty-received);
   }
 
   @override

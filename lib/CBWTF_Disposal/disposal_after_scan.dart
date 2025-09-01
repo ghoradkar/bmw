@@ -53,7 +53,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
       final token = prefs.getString('Token') ?? '';
 
       final response = await http.get(
-        Uri.parse('${baseurl}${GET_BARCODE_DATA}${widget.barcode}'),
+        Uri.parse('${baseurl}${GET_DATA_FROM_QR}${widget.barcode}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -61,7 +61,8 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
       );
       print('${baseurl}${GET_BARCODE_DATA}${widget.barcode}');
       print(response.body);
-      if (response.statusCode == 201) {
+      print(response.statusCode);
+      if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
           rows = data['data'];
@@ -97,7 +98,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
         },
       );
       print('${baseurl}${GET_BIO_WASTE_DETAILS}${widget.wasteId}');
-      print(response.statusCode);
+      print(response.body);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
@@ -230,7 +231,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
   double _getDiff(int index, double pickupQty) {
     final receivedText = _receivedQtyControllers[index].text;
     final received = double.tryParse(receivedText) ?? 0.0;
-    return (received - pickupQty);
+    return (pickupQty-received);
   }
 
   @override
@@ -409,7 +410,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
     final colourType = item['colourType'] ?? 'G';
     final pickupQty = (item['totalQuantityBagKg'] ?? 0).toDouble();
     final byvehicle = (item['pickupTotalQuantityBagKg'] ?? 0).toDouble();
-    final bycbwtf=(item['pickupTotalQuantityBagCbwtfDisposalKg'] ?? 0).toDouble();
+    final bycbwtf=(item['pickupTotalQuantityBagCbwtfKg'] ?? 0).toDouble();
 
     final color = _getColorFromType(colourType);
     final diff = _getDiff(index, pickupQty);

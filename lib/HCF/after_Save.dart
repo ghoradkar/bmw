@@ -113,23 +113,71 @@ class _BioWasteDetailTableScreenState extends State<BioWasteDetailTableScreen> {
         return Colors.grey;
     }
   }
+  // Future<void> fetchBioWasteSummary() async {
+  //   setState(() => isLoading = true);
+  //   // SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   // var token = prefs.getString('Token');
+  //   // Map<String, dynamic> user = jsonDecode(prefs.getString('user')!);
+  //   //
+  //   try {
+  //     final int hcfWasteId = widget.data['hcfWasteId'];
+  //      wasteList = widget.data['wasteList'] ?? [];
+  //     print(wasteList!.length);
+  //     for (var waste in wasteList!) {
+  //       final hcfWasteQntyId = waste["hcfWasteQntyId"];
+  //       final List<dynamic> wasteDetList = waste["wasteDetList"] ?? [];
+  //
+  //       for (var det in wasteDetList) {
+  //         final hcfWasteQntyDetId = det["hcfWasteQntyDetId"];
+  //
+  //         selectedWasteEntries.add({
+  //           "hcfWasteId": hcfWasteId,
+  //           "hcfWasteQntyId": hcfWasteQntyId,
+  //           "hcfWasteQntyDetId": hcfWasteQntyDetId,
+  //         });
+  //       }
+  //     }
+  //     print('selected');
+  //     print(selectedWasteEntries.length);
+  //     print(selectedWasteEntries);
+  //
+  //   } catch (e) {
+  //     print("Error: $e");
+  //
+  //   }
+  //
+  //   setState(() => isLoading = false);
+  // }
+  List<Map<String, dynamic>> flattenedWasteEntries = [];
+
   Future<void> fetchBioWasteSummary() async {
     setState(() => isLoading = true);
-    // SharedPreferences prefs = await SharedPreferences.getInstance();
-    // var token = prefs.getString('Token');
-    // Map<String, dynamic> user = jsonDecode(prefs.getString('user')!);
-    //
     try {
       final int hcfWasteId = widget.data['hcfWasteId'];
-       wasteList = widget.data['wasteList'] ?? [];
-      print(wasteList);
+      wasteList = widget.data['wasteList'] ?? [];
+
+      flattenedWasteEntries.clear();
+      selectedWasteEntries.clear();
+
       for (var waste in wasteList!) {
         final hcfWasteQntyId = waste["hcfWasteQntyId"];
-        final List<dynamic> wasteDetList = waste["wasteDetList"] ?? [];
+        final categoryId = waste["lookupDetIdCategory"];
+        final wasteDetList = waste["wasteDetList"] ?? [];
 
         for (var det in wasteDetList) {
           final hcfWasteQntyDetId = det["hcfWasteQntyDetId"];
+          final quantity = det["quantityBag"];
 
+          // Store for table display
+          flattenedWasteEntries.add({
+            "hcfWasteId": hcfWasteId,
+            "hcfWasteQntyId": hcfWasteQntyId,
+            "hcfWasteQntyDetId": hcfWasteQntyDetId,
+            "lookupDetIdCategory": categoryId,
+            "totalQuantityBagKg": quantity
+          });
+
+          // Store for barcode printing
           selectedWasteEntries.add({
             "hcfWasteId": hcfWasteId,
             "hcfWasteQntyId": hcfWasteQntyId,
@@ -137,39 +185,14 @@ class _BioWasteDetailTableScreenState extends State<BioWasteDetailTableScreen> {
           });
         }
       }
-      print(selectedWasteEntries);
-    //   final headers = {
-    //     'Content-Type': 'application/json; charset=UTF-8',
-    //     'Accept': 'application/json ; charset=UTF-8',
-    //     'Authorization': 'Bearer $token',
-    //   };
-    //
-    //   var date = DateFormat('dd/MM/yyyy').format(DateTime.now());
-    //   final response = await http.get(
-    //     Uri.parse(
-    //       '${baseurl}${GET_BIO_WASTE_DATA_FOR_HCF}date=$date&userId=${user['userId']}',
-    //     ),
-    //     headers: headers,
-    //   );
-    //
-    //
-    //   if (response.statusCode == 200) {
-    //     final jsonResponse = jsonDecode(response.body);
-    //     final List<dynamic> data = jsonResponse['data'] ?? [];
-    //
-    //
-    //
-    //     wasteList = data.map((e) => Map<String, dynamic>.from(e)).toList();
-    //   } else {
-    //    wasteList = [];
-    //   }
+
+      print('Flattened entries: ${flattenedWasteEntries.length}');
     } catch (e) {
       print("Error: $e");
-
     }
-
     setState(() => isLoading = false);
   }
+
   final Map<String, Color> categoryColors = {
     'Yellow': Colors.yellow,
     'Red': Colors.red,
@@ -232,82 +255,74 @@ class _BioWasteDetailTableScreenState extends State<BioWasteDetailTableScreen> {
     });
   }
 
-  Widget _buildTableHeader() {
-    return Container(
-      color: Colors.lightBlue,
-      padding: const EdgeInsets.symmetric(vertical: 10),
-      child: Row(
-        children: const [
-          Expanded(child: Center(child: Text('Bag No.', style: TextStyle(color: Colors.white)))),
-          Expanded(child: Center(child: Text('Category', style: TextStyle(color: Colors.white)))),
-          Expanded(child: Center(child: Text('Weight in kg', style: TextStyle(color: Colors.white)))),
-          Expanded(child: Center(child: Text('Print Barcode', style: TextStyle(color: Colors.white)))),
-        ],
-      ),
-    );
-  }
 
-  Widget _buildTableRow(int index, Map<String, dynamic> entry) {
-    final colorId = entry['lookupDetIdCategory'];
-    final colorName = wasteColorLookup[colorId];
-    return Container(
-      padding: const EdgeInsets.symmetric(vertical: 12),
-      decoration: BoxDecoration(
-        border: Border(bottom: BorderSide(color: Colors.grey.shade300)),
-      ),
-      child: Row(
-        children: [
-          Expanded(child: Center(child: Text('${index + 1}'))),
-          Expanded(
-            child: Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  width: 16,
-                  height: 16,
-                  decoration: BoxDecoration(
-                    color:categoryColors[colorName] ??
-                        Colors.grey,
-                    border: Border.all(color: Colors.black),
-                  ),
-                ),
-                const SizedBox(width: 5),
-                Text(colorName!),
-              ],
-            ),
-          ),
-          Expanded(
-            child: Center(
-              child: SizedBox(
-                width: 60,
-                child: TextField(
-                  controller: TextEditingController(text: entry['totalQuantityBagKg'].toString()),
-                  onChanged: (value) {
-                    setState(() {
-                      entry['totalQuantityBagKg'] = double.tryParse(value) ?? 0;
-                    });
-                  },
-                  keyboardType: TextInputType.number,
-                  decoration: const InputDecoration(border: OutlineInputBorder(), isDense: true),
-                ),
-              ),
-            ),
-          ),
-          Expanded(
-            child: IconButton(
-              icon: const Icon(Icons.print),
-              onPressed: isLoadingbarcode
-                  ? null
-                  : () {
-                generateBarcode(entry);
-              },
-            ),
-          ),
-        ],
-      ),
-    );
-  }
+  // Future<void> sendWasteData() async {
+  //   wasteData = selectedWasteEntries.map((item) {
+  //     return HcfWasteModel(
+  //       hcfWasteId: item['hcfWasteId'],
+  //       hcfWasteQntyDetId: item['hcfWasteQntyDetId'],
+  //       hcfWasteQntyId: item['hcfWasteQntyId'],
+  //     );
+  //   }).where((e) =>
+  //   e.hcfWasteQntyDetId != null && e.hcfWasteQntyId != null).toList();
+  //
+  // print(wasteData.length);
+  //
+  //
+  // final body = wasteData.map((e) => e.toJson()).toList();
+  //   print('send');
+  //   print(wasteData.length);
+  //   SharedPreferences prefs = await SharedPreferences.getInstance();
+  //   var token = prefs.getString('Token');
+  //   Map<String, dynamic> user = jsonDecode(prefs.getString('user')!);
+  //
+  //   try {
+  //     final headers = {
+  //       'Content-Type': 'application/json; charset=UTF-8',
+  //       'Accept': 'application/json ; charset=UTF-8',
+  //       'Authorization': 'Bearer $token',
+  //     };
+  //
+  //
+  //     final response = await http.post(
+  //       Uri.parse('${baseurl}${MULTIPLE_BARCODE}'),
+  //       headers: headers,
+  //
+  //       body: jsonEncode(body),
+  //     );
+  //     print(jsonEncode(body));
+  //
+  //     if (response.statusCode == 200) {
+  //       final Uint8List imageBytes = response.bodyBytes as Uint8List;
+  //       print(response.body);
+  //
+  //       // Navigate to a preview screen
+  //       Navigator.push(
+  //         context,
+  //         MaterialPageRoute(
+  //           builder: (_) => BarcodeImageScreen(imageBytes: imageBytes),
+  //         ),
+  //       );
+  //       // success logic
+  //       print('Data submitted successfully');
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //           SnackBar(content: Text('Data submitted successfully')));
+  //     } else {
+  //
+  //       // error logic
+  //       print('Error: ${response.body}');
+  //       ScaffoldMessenger.of(context).showSnackBar(
+  //           SnackBar(content: Text('Submission failed')));
+  //     }
+  //   }
+  //   catch (e) {
+  //     ScaffoldMessenger.of(context).showSnackBar(
+  //       const SnackBar(content: Text('Error fetching barcodes')),
+  //     );
+  //     print('Error fetching barcodes: $e');
+  //   }}
   Future<void> sendWasteData() async {
+    // Convert selected entries to model
     wasteData = selectedWasteEntries.map((item) {
       return HcfWasteModel(
         hcfWasteId: item['hcfWasteId'],
@@ -315,14 +330,22 @@ class _BioWasteDetailTableScreenState extends State<BioWasteDetailTableScreen> {
         hcfWasteQntyId: item['hcfWasteQntyId'],
       );
     }).where((e) =>
-    e.hcfWasteQntyDetId != null && e.hcfWasteQntyId != null).toList();
+    e.hcfWasteQntyDetId != null &&
+        e.hcfWasteQntyId != null
+    ).toList();
 
-  print(wasteData.length);
+    debugPrint("✅ Waste Data Count: ${wasteData.length}");
+    debugPrint("📦 Waste Data Body: ${jsonEncode(wasteData.map((e) => e.toJson()).toList())}");
 
+    if (wasteData.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No valid waste entries found')),
+      );
+      return;
+    }
 
-  final body = wasteData.map((e) => e.toJson()).toList();
-    print('send');
-    print(wasteData.length);
+    final body = wasteData.map((e) => e.toJson()).toList();
+
     SharedPreferences prefs = await SharedPreferences.getInstance();
     var token = prefs.getString('Token');
     Map<String, dynamic> user = jsonDecode(prefs.getString('user')!);
@@ -334,44 +357,66 @@ class _BioWasteDetailTableScreenState extends State<BioWasteDetailTableScreen> {
         'Authorization': 'Bearer $token',
       };
 
-
       final response = await http.post(
-        Uri.parse('${baseurl}${MULTIPLE_BARCODE}'),
+        Uri.parse('$baseurl$MULTIPLE_BARCODE'),
         headers: headers,
-
         body: jsonEncode(body),
       );
-      print(jsonEncode(body));
+
+      debugPrint("📤 Sent Body: ${jsonEncode(body)}");
+      debugPrint("📥 Response Code: ${response.statusCode}");
+      debugPrint("📥 Response Body: ${response.body}");
 
       if (response.statusCode == 200) {
-        final Uint8List imageBytes = response.bodyBytes as Uint8List;
-        print(response.body);
+        // Check if API returns multiple images or just one
+        try {
+          // final decoded = jsonDecode(response.body);
+          // if (decoded is List) {
+          //   // If multiple barcodes
+          //   Navigator.push(
+          //     context,
+          //     MaterialPageRoute(
+          //       builder: (_) => MultipleBarcodeScreen(barcodes: decoded),
+          //     ),
+          //   );
+          // } else {
+            // If single barcode image
+            final Uint8List imageBytes = response.bodyBytes;
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (_) => BarcodeImageScreen(imageBytes: imageBytes),
+              ),
+            );
+          //}
+        } catch (_) {
+          // Fallback to single image
+          final Uint8List imageBytes = response.bodyBytes;
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder: (_) => BarcodeImageScreen(imageBytes: imageBytes),
+            ),
+          );
+        }
 
-        // Navigate to a preview screen
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => BarcodeImageScreen(imageBytes: imageBytes),
-          ),
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Data submitted successfully')),
         );
-        // success logic
-        print('Data submitted successfully');
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Data submitted successfully')));
       } else {
-
-        // error logic
-        print('Error: ${response.body}');
+        debugPrint('❌ Error: ${response.body}');
         ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(content: Text('Submission failed')));
+          const SnackBar(content: Text('Submission failed')),
+        );
       }
-    }
-    catch (e) {
+    } catch (e) {
+      debugPrint('❌ Error fetching barcodes: $e');
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(content: Text('Error fetching barcodes')),
       );
-      print('Error fetching barcodes: $e');
-    }}
+    }
+  }
+
 
   @override
   Widget build(BuildContext context) {
@@ -504,102 +549,146 @@ class _BioWasteDetailTableScreenState extends State<BioWasteDetailTableScreen> {
                       ),
                     ],
                   ),
-                  for (int i = 0; i < wasteList!.length; i++)
+                  for (int i = 0; i < flattenedWasteEntries.length; i++)
+            TableRow(
+        children: [
+        Padding(
+        padding: const EdgeInsets.all(8),
+      child: Text("${i + 1}"),
+    ),
+    Padding(
+    padding: const EdgeInsets.all(8),
+    child: Row(
+    children: [
+    Container(
+    width: 14,
+    height: 14,
+    color: categoryColors[
+    wasteColorLookup[flattenedWasteEntries[i]['lookupDetIdCategory']]
+    ] ?? Colors.grey,
+    ),
+    const SizedBox(width: 6),
+    Text(
+    wasteColorLookup[flattenedWasteEntries[i]['lookupDetIdCategory']] ?? '',
+    ),
+    ],
+    ),
+    ),
+    Padding(
+    padding: const EdgeInsets.all(8),
+    child: TextFormField(
+    initialValue: flattenedWasteEntries[i]['totalQuantityBagKg'].toString(),
+    onChanged: (val) {
+    flattenedWasteEntries[i]['totalQuantityBagKg'] =
+    double.tryParse(val) ?? 0;
+    },
+    ),
+    ),
+    IconButton(
+    icon: const Icon(Icons.print),
+    onPressed: isLoadingbarcode
+    ? null
+        : () {
+    generateBarcode(selectedWasteEntries[i]);
+    },
+    ),
+    ],
+    )
 
-                    TableRow(
-                      decoration: BoxDecoration(
-                        color:
-                        i % 2 == 0
-                            ? Colors.white
-                            : Colors.grey.shade50,
-                      ),
-                      children: [
-                        Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: Text(
-                            "${i + 1}",
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                          ),
-                        ),
-                        Padding(
-
-                          padding: const EdgeInsets.all(8),
-                          child: Row(
-                            children: [
-                              Container(
-                                width: 14,
-                                height: 14,
-                                decoration: BoxDecoration(
-                                  color:
-                                  categoryColors[wasteColorLookup[wasteList![i]['lookupDetIdCategory']]] ??
-                                      Colors.grey,
-                                  shape: BoxShape.rectangle,
-                                  border: Border.all(
-                                    color:
-                                    wasteColorLookup[wasteList![i]['lookupDetIdCategory']]=='White'
-                                        ? Colors.black
-                                        : Colors.transparent,
-                                  ),
-                                ),
-                              ),
-                              const SizedBox(width: 6),
-                              Text(
-                                wasteColorLookup[wasteList![i]['lookupDetIdCategory']]!,
-                                style: const TextStyle(
-                                  fontWeight: FontWeight.bold,
-                                  fontSize: 12,
-                                ),
-                              ),
-                            ],
-                          ),
-                        ),
-                        Padding(
-                          padding: const EdgeInsets.all(8),
-                          child: TextFormField(
-
-                            style: const TextStyle(
-                              fontWeight: FontWeight.bold,
-                              fontSize: 12,
-                            ),
-                            initialValue:
-                            wasteList![i]['totalQuantityBagKg'].toString(),
-                            keyboardType: TextInputType.number,
-                            decoration: InputDecoration(
-                              contentPadding:
-                              const EdgeInsets.symmetric(
-                                horizontal: 10,
-                                vertical: 10,
-                              ),
-                              isDense: true,
-                              enabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: Colors.grey,
-                                ),
-                              ),
-                              focusedBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: Colors.blue,
-                                ),
-                              ),
-                              disabledBorder: OutlineInputBorder(
-                                borderRadius: BorderRadius.circular(8),
-                                borderSide: const BorderSide(
-                                  color: Colors.grey,
-                                ),
-                              ),
-                            ),
-
-                            onChanged: (val) {
-                              wasteList![i]['totalQuantityBagKg'] =
-                                  double.tryParse(val) ?? 0;
-                            },
-                          ),
-                        ),
+                    // TableRow(
+                    //   decoration: BoxDecoration(
+                    //     color:
+                    //     i % 2 == 0
+                    //         ? Colors.white
+                    //         : Colors.grey.shade50,
+                    //   ),
+                    //   children: [
+                    //     Padding(
+                    //       padding: const EdgeInsets.all(8),
+                    //       child: Text(
+                    //         "${i + 1}",
+                    //         style: const TextStyle(
+                    //           fontWeight: FontWeight.bold,
+                    //           fontSize: 12,
+                    //         ),
+                    //       ),
+                    //     ),
+                    //     Padding(
+                    //
+                    //       padding: const EdgeInsets.all(8),
+                    //       child: Row(
+                    //         children: [
+                    //           Container(
+                    //             width: 14,
+                    //             height: 14,
+                    //             decoration: BoxDecoration(
+                    //               color:
+                    //               categoryColors[wasteColorLookup[wasteList![i]['lookupDetIdCategory']]] ??
+                    //                   Colors.grey,
+                    //               shape: BoxShape.rectangle,
+                    //               border: Border.all(
+                    //                 color:
+                    //                 wasteColorLookup[wasteList![i]['lookupDetIdCategory']]=='White'
+                    //                     ? Colors.black
+                    //                     : Colors.transparent,
+                    //               ),
+                    //             ),
+                    //           ),
+                    //           const SizedBox(width: 6),
+                    //           Text(
+                    //             wasteColorLookup[wasteList![i]['lookupDetIdCategory']]!,
+                    //             style: const TextStyle(
+                    //               fontWeight: FontWeight.bold,
+                    //               fontSize: 12,
+                    //             ),
+                    //           ),
+                    //         ],
+                    //       ),
+                    //     ),
+                    //     Padding(
+                    //       padding: const EdgeInsets.all(8),
+                    //       child: TextFormField(
+                    //
+                    //         style: const TextStyle(
+                    //           fontWeight: FontWeight.bold,
+                    //           fontSize: 12,
+                    //         ),
+                    //         initialValue:
+                    //         wasteList![i]['totalQuantityBagKg'].toString(),
+                    //         keyboardType: TextInputType.number,
+                    //         decoration: InputDecoration(
+                    //           contentPadding:
+                    //           const EdgeInsets.symmetric(
+                    //             horizontal: 10,
+                    //             vertical: 10,
+                    //           ),
+                    //           isDense: true,
+                    //           enabledBorder: OutlineInputBorder(
+                    //             borderRadius: BorderRadius.circular(8),
+                    //             borderSide: const BorderSide(
+                    //               color: Colors.grey,
+                    //             ),
+                    //           ),
+                    //           focusedBorder: OutlineInputBorder(
+                    //             borderRadius: BorderRadius.circular(8),
+                    //             borderSide: const BorderSide(
+                    //               color: Colors.blue,
+                    //             ),
+                    //           ),
+                    //           disabledBorder: OutlineInputBorder(
+                    //             borderRadius: BorderRadius.circular(8),
+                    //             borderSide: const BorderSide(
+                    //               color: Colors.grey,
+                    //             ),
+                    //           ),
+                    //         ),
+                    //
+                    //         onChanged: (val) {
+                    //           wasteList![i]['totalQuantityBagKg'] =
+                    //               double.tryParse(val) ?? 0;
+                    //         },
+                    //       ),
+                    //     ),
                         // Padding(
                         //   padding: const EdgeInsets.all(8),
                         //   child: TextFormField(
@@ -643,26 +732,25 @@ class _BioWasteDetailTableScreenState extends State<BioWasteDetailTableScreen> {
                         //     },
                         //   ),
                         // ),
-                        IconButton(
-                            icon: const Icon(Icons.print),
-                            onPressed: isLoadingbarcode
-                                ? null
-                                : () {
-                              generateBarcode(selectedWasteEntries[i]);
-                            },
-                          ),
+                        // IconButton(
+                        //     icon: const Icon(Icons.print),
+                        //     onPressed: isLoadingbarcode
+                        //         ? null
+                        //         : () {
+                        //       generateBarcode(selectedWasteEntries[i]);
+                        //     },
+                        //   ),
 
 
 
-                      ],
-                    ),
-                ],
-              ),
-            ),
-          ],
+                    //   ],
+                    // ),
+                //],
+
+          ],)
         ),
-      ),
-    )])),
+      ]),
+    ))])),
     offlineChild: Offline()));
   }
 }

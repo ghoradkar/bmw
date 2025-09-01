@@ -12,6 +12,11 @@ import '../network/network_status.dart';
 import '../network/offline.dart';
 
 class ReceptionScanner extends StatefulWidget {
+
+  final  List<dynamic> rows;
+  final List<TextEditingController>_receivedQtyControllers;
+  final List<bool>value_entered;
+ReceptionScanner(this.rows,this._receivedQtyControllers,this.value_entered,{super.key});
   @override
   _ReceptionScannerState createState() => _ReceptionScannerState();
 }
@@ -43,7 +48,7 @@ class _ReceptionScannerState extends State<ReceptionScanner> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => ReceptionAfterScan(barcode: scanData.code!),
+            builder: (context) => ReceptionAfterScan(barcode: scanData.code!, rows: widget.rows, receivedQtyControllers: widget._receivedQtyControllers, value_entered: widget.value_entered,),
           ),
         );
       }

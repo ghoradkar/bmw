@@ -14,6 +14,7 @@ import '../Global/app_bar.dart';
 import '../Global/app_button.dart';
 import '../Global/app_routes.dart';
 import '../Global/constant.dart';
+
 import '../Global/size_config.dart';
 import '../Global/url.dart';
 import '../network/network_aware.dart';
@@ -66,16 +67,18 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
       final UserId = prefs.getString('UserId');
 
       final response = await http.get(
-        Uri.parse('${baseurl}${GET_DISPOSAL_DATA}fromDate=${DateTime.now().toString().substring(0,10)}&toDate=${DateTime.now().toString().substring(0,10)}&userId=$UserId'),
+        Uri.parse('${baseurl}${GET_WASTE_RECEIVED_BY_VEHICLE}$UserId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },);
-      print('${baseurl}${GET_DISPOSAL_DATA}fromDate=${DateTime.now().toString().substring(0,10)}&toDate=${DateTime.now().toString().substring(0,10)}&userId=$UserId');
+      print('${baseurl}${GET_WASTE_RECEIVED_BY_VEHICLE}$UserId');
       print(response.body);
-    if (response.statusCode == 200) {
+      print(response.statusCode);
+    if (response.statusCode == 201) {
         Map<String,dynamic>value = jsonDecode(response.body);
         List data=value['data'];
+        print(data.length);
         formattedList=transformResponse(data, userId: int.parse(UserId!));
         print(formattedList);
 
@@ -85,8 +88,8 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
       setState(() {
         _tableData = data.map((e) => {
          'wasteId':e['hcfWasteId'],
-          'date': formatDate(e['assignDateCbwtf']),
-          'name': e['vehicleNo'],
+          'date': formatDate(e['wasteQntyDateStr']),
+          'name': e['hcfName'],
           'bags': e['totalNoOfBags'],
           'waste': e['totalQuantityBagKg'],
         }).toList();
@@ -227,7 +230,7 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
                           children: const [
                             _TableHeaderCell("Sr.\nNo."),
                             _TableHeaderCell("Date"),
-                            _TableHeaderCell("Vehicle No."),
+                            _TableHeaderCell("Name Of HCF"),
                             _TableHeaderCell("Total\nno. of Bags"),
                             _TableHeaderCell("Total Waste\nGenerated"),
                             _TableHeaderCell("Action"),
@@ -269,26 +272,26 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
                       ],
                     ),
                     //  Spacer(),
-                      SizedBox(
-                        width: responsiveWidth(200),
-                        child: AppButton(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 10,
-                            horizontal: 15,
-                          ),
-                          text: 'Collect All',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => DisposalOverallCollection(formattedList),
-                              ),
-                            );
-
-                          },
-                          color: Colors.deepOrange,
-                        ),
-                      ),
+                    //   SizedBox(
+                    //     width: responsiveWidth(200),
+                    //     child: AppButton(
+                    //       padding: const EdgeInsets.symmetric(
+                    //         vertical: 10,
+                    //         horizontal: 15,
+                    //       ),
+                    //       text: 'Collect All',
+                    //       onPressed: () {
+                    //         Navigator.push(
+                    //           context,
+                    //           MaterialPageRoute(
+                    //             builder: (_) => DisposalOverallCollection(formattedList),
+                    //           ),
+                    //         );
+                    //
+                    //       },
+                    //       color: Colors.deepOrange,
+                    //     ),
+                    //   ),
 
                   ])))
               )])
