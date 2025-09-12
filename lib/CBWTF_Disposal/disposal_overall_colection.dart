@@ -1,13 +1,18 @@
 import 'package:flutter/material.dart';
 import 'dart:convert';
 import 'package:http/http.dart' as http;
+import 'package:intl/intl.dart';
+import 'package:mpcb_bio_waste/CBWTF_Disposal/dispose_all.dart';
+import 'package:mpcb_bio_waste/CBWTF_Disposal/waste_received_byvehicle.dart';
 import 'package:mpcb_bio_waste/CBWTF_Reception/vehicle_list.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../Global/AppDrawer.dart';
 import '../Global/app_bar.dart';
 import '../Global/app_button.dart';
 import '../Global/constant.dart';
+import '../Global/dataNotFound.dart';
 import '../Global/images.dart';
 import '../Global/size_config.dart';
 import '../Global/url.dart';
@@ -17,27 +22,30 @@ import '../network/network_status.dart';
 import '../network/offline.dart';
 
 class DisposalOverallCollection extends StatefulWidget {
-  List<Map<String,dynamic>> formattedList;
-  DisposalOverallCollection(this.formattedList,{super.key});
-
+  DisposalOverallCollection({super.key});
 
   @override
-  State<DisposalOverallCollection> createState() => _OverallDataCollectionState();
+  State<DisposalOverallCollection> createState() =>
+      _OverallDataCollectionState();
 }
 
 class _OverallDataCollectionState extends State<DisposalOverallCollection> {
   List<Map<String, dynamic>> tableData = [];
   bool isLoading = true;
   List<dynamic> rows = [];
-  bool load=false;
-  bool save=false;
+  List<Map<String, dynamic>> selectedRows = [];
+  List<Map<String, dynamic>> formattedList = [];
+  bool load = false;
+  final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  bool save = false;
   List<TextEditingController> _receivedQtyControllers = [];
   List<bool> value_entered = [];
+  bool data_not_found=false;
 
   double _getDiff(int index, double pickupQty) {
     final receivedText = _receivedQtyControllers[index].text;
     final received = double.tryParse(receivedText) ?? 0.0;
-    return (pickupQty-received);
+    return (pickupQty - received);
   }
 
   @override
@@ -45,6 +53,7 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
     super.initState();
     fetchTableData();
   }
+
   Future<void> SaveWaste() async {
     setState(() => save = true);
 
@@ -63,19 +72,24 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
             double.tryParse(_receivedQtyControllers[i].text.trim()) ?? 0.0;
 
         final pickupQty =
-        (item['pickupTotalQuantityBagCbwtfKg'] ?? 0).toDouble();
+            (item['pickupTotalQuantityBagCbwtfKg'] ?? 0).toDouble();
         final pickupBags = item['pickupNoOfbag'] ?? 0;
 
         return {
+          //   "lookupDetIdCategory": item['lookupDetIdCategory'],
+          //   "recivedTotalNoOfBags": pickupBags,
+          //   "recivedTotalQuantityBagKg":pickupQty,
+          //   "totalNoOfBags": item['totalNoOfBags'],
+          //   "totalQuantityBagKg": item['totalQuantityBagKg'],
+          // //  "vehicleNo": widget.vehicleNo,
+          //   "userId":userId
           "lookupDetIdCategory": item['lookupDetIdCategory'],
-          "recivedTotalNoOfBags": pickupBags,
-          "recivedTotalQuantityBagKg":pickupQty,
           "totalNoOfBags": item['totalNoOfBags'],
           "totalQuantityBagKg": item['totalQuantityBagKg'],
-        //  "vehicleNo": widget.vehicleNo,
-          "userId":userId
-
-
+          "dispNoOfBags": pickupBags,
+          "dispTotalQuantityBagKg": pickupQty,
+          "cbwtfRecpDispIds": item["cbwtfRecpDispIds"],
+          "userId": userId,
 
           // "hcfWasteId": item['hcfWasteId'],
           // "hcfId": item['hcfId'],
@@ -106,16 +120,13 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
           // "assignDateCbwtfDisposal": nowUtc,
           // "pickupTotalQuantityBagCbwtfKg": pickupQty,
           // "pickupTotalQuantityBagCbwtfDisposalKg":pickupQty
-
-
-
         };
       });
 
       print(jsonEncode(body));
 
       final response = await http.post(
-        Uri.parse('$baseurl$SAVE_OVERALL_DATA'),
+        Uri.parse('$baseurl$SAVE_OVERALL_DISPOSAL_DATA'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
@@ -123,31 +134,30 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
         body: jsonEncode(body),
       );
 
-      print('$baseurl$SAVE_OVERALL_DATA');
+      print('$baseurl$SAVE_OVERALL_DISPOSAL_DATA');
       print(response.body);
 
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text(responseData['message'])),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text(responseData['message'])));
         showSuccessDialog(context);
       } else if (response.statusCode == 401) {
         AuthService().logout(context);
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Submission failed.')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('Submission failed.')));
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Error: $e')));
     } finally {
       setState(() => save = false);
     }
   }
-
 
   Future<void> fetchTableData() async {
     try {
@@ -155,15 +165,91 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
       final token = prefs.getString('Token') ?? '';
       final username = prefs.getString('Username') ?? '';
       final userId = prefs.getString('UserId') ?? '';
-      var body={ "cbwtfRecpDispIds": "202,203",
-        "totalNoOfBags": 12,
-        "totalQuantityBagKg": 45.5,
-        "pickupNoOfbag": 11,
-        "pickupTotalQuantityBagCbwtfKg": 44.8,
+
+      final UserId = prefs.getString('UserId');
+      final today = DateTime.now().toString().substring(0, 10);
+
+      //  print(widget.formattedList);
+
+      final response = await http.get(
+        Uri.parse(
+          '${baseurl}${GET_DISPOSAL_DATA}fromDate=$today&toDate=$today&userId=$UserId',
+        ),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        //  body: jsonEncode(widget.formattedList.first)
+      );
+      print(
+        '${baseurl}${GET_DISPOSAL_DATA}fromDate=$today&toDate=$today&userId=$UserId',
+      );
+      print(response.body);
+
+      if (response.statusCode == 200) {
+        Map<String, dynamic> value = json.decode(response.body);
+
+        // // Group and sort by colour
+        // data.sort((a, b) {
+        //   final colorOrder = ["Yellow", "Red", "Blue", "White"];
+        //   return colorOrder.indexOf(a['wasteTypeColour'])
+        //       .compareTo(colorOrder.indexOf(b['wasteTypeColour']));
+        // });
+
+        setState(() {
+          List<dynamic> data = value['data'] ?? [];
+
+          rows = data;
+          _receivedQtyControllers = List.generate(
+            rows.length,
+            (_) => TextEditingController(),
+          );
+          value_entered = List.generate(rows.length, (_) => false);
+          rows.isEmpty?data_not_found=true:data_not_found=false;
+
+          load = false;
+          isLoading = false;
+        });
+      } else {
+        throw Exception("Failed to load data");
+      }
+    } catch (e) {
+      setState(() {
+        isLoading = false;
+      });
+      debugPrint("Error fetching table data: $e");
+    }
+  }
+
+  List<Map<String, dynamic>> transformResponse(
+    List responseList, {
+    required int userId,
+  }) {
+    return responseList.map((item) {
+      return {
+        "cbwtfRecpDispIds": item["cbwtfRecpDispIds"],
+        "totalNoOfBags": item["totalNoOfBags"],
+        "totalQuantityBagKg": item["totalQuantityBagKg"],
+        "pickupNoOfbag": item["pickupNoOfbag"],
+        "pickupTotalQuantityBagCbwtfKg": item["pickupTotalQuantityBagCbwtfKg"],
         "lookupDetIdCategory": 3,
-        "userId":2413
+        "userId": userId,
       };
-      print(widget.formattedList);
+    }).toList();
+  }
+
+  Future<void> fetchdetailTableData(data) async {
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('Token') ?? '';
+      final username = prefs.getString('Username') ?? '';
+      final userId = prefs.getString('UserId') ?? '';
+
+      final UserId = prefs.getString('UserId');
+      final today = DateTime.now().toString().substring(0, 10);
+      formattedList = transformResponse(data, userId: int.parse(userId));
+
+      //  print(widget.formattedList);
 
       final response = await http.post(
         Uri.parse('${baseurl}${GET_OVERALL_DISPOSAL_DATA}'),
@@ -171,11 +257,11 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode(widget.formattedList.first)
+        body: jsonEncode(formattedList.first),
       );
       print('${baseurl}${GET_OVERALL_DISPOSAL_DATA}');
+      print(jsonEncode(formattedList.first));
       print(response.body);
-
 
       if (response.statusCode == 200) {
         Map<String, dynamic> value = json.decode(response.body);
@@ -184,7 +270,8 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
         // Group and sort by colour
         data.sort((a, b) {
           final colorOrder = ["Yellow", "Red", "Blue", "White"];
-          return colorOrder.indexOf(a['wasteTypeColour'])
+          return colorOrder
+              .indexOf(a['wasteTypeColour'])
               .compareTo(colorOrder.indexOf(b['wasteTypeColour']));
         });
 
@@ -192,7 +279,7 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
           rows = data;
           _receivedQtyControllers = List.generate(
             rows.length,
-                (_) => TextEditingController(),
+            (_) => TextEditingController(),
           );
           value_entered = List.generate(rows.length, (_) => false);
           load = false;
@@ -209,7 +296,6 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
     }
   }
 
-
   @override
   Widget build(BuildContext context) {
     return StreamProvider<NetworkStatus>(
@@ -218,25 +304,34 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
         initialData: NetworkStatus.Online,
         child: NetworkAwareWidget(
             onlineChild:Scaffold(
+              drawer: AppDrawer(),
+              key: _scaffoldKey,
               body: Stack(
                 children: [
                   /// Custom Gradient AppBar
                   mAppBar(
-                    onLeadingIconClick: () => Navigator.pop(context),
-                    scTitle: 'View Details',
-                    centerTile: false,
+                    leadingWidget: Builder(
+                      builder: (context) => IconButton(
+                        icon: const Icon(Icons.menu, color: Colors.white),
+                        onPressed: () => Scaffold.of(context).openDrawer(),
+                      ),
+                    ),
                     showLeading: true,
+                    //onLeadingIconClick: () => Navigator.pop(context),
+                    scTitle: 'Bio Waste Received By Vehicle',
+                    centerTile: false,
+                   // showLeading: true,
                   ),
 
                   /// Body with tabs
                   Positioned.fill(
-                    top: responsiveHeight(110),
+                    top: 100,
                     bottom: responsiveHeight(
                       0,
                     ), // offset to appear below custom app bar
                     child: Container(
-                      height: responsiveHeight(100),
-                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 30),
+                      //height: responsiveHeight(90),
+                      padding: EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                       decoration: BoxDecoration(
                         color: kWhiteColor,
 
@@ -245,26 +340,24 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
                           topLeft: Radius.circular(40),
                         ),
                       ),
-                      child:SingleChildScrollView(child:Column(children: [
+                      child:
                       load
                           ? Center(
                         child: CircularProgressIndicator(color: kPrimaryColor),
                       )
-                          :
+                          : data_not_found?Datanotfound():SingleChildScrollView(child:Column(
+                        children: [
                           SizedBox(height: 20),
-                          _buildTable(),
-                        //SizedBox(height: 40),
-                          //Spacer(),
-                          save
-                              ? Center(
-                            child: CircularProgressIndicator(
-                              color: kPrimaryColor,
-                            ),
-                          )
-                              : Row(
-                            mainAxisAlignment:
-                            MainAxisAlignment.spaceEvenly,
-                            children: [
+                        _buildTable(),
+                          SizedBox(height: 20),
+                         // Spacer(),
+                         //  save
+                         //      ? Center(
+                         //    child: CircularProgressIndicator(
+                         //      color: kPrimaryColor,
+                         //    ),
+                         //  )
+
                               SizedBox(
                                 width: responsiveWidth(150),
                                 child: AppButton(
@@ -272,61 +365,24 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
                                     vertical: 5,
                                     horizontal: 15,
                                   ),
-                                  text: 'Save',
+                                  text: 'Dispose',
                                   onPressed: () {
-                                    bool isValid = true;
+                                    selectedRows.isEmpty?
+                                        {  ScaffoldMessenger.of(context).showSnackBar(
+                                    const SnackBar(content: Text('Please Select Waste to Dispose')),
+                                    ),}:
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder: (context) => DisposeAll(selectedRows
+                                      )),
+                                    );
 
-                                    for (
-                                    int i = 0;
-                                    i < _receivedQtyControllers.length;
-                                    i++
-                                    ) {
-                                      final text =
-                                      _receivedQtyControllers[i].text
-                                          .trim();
-
-                                      if (text.isEmpty) {
-                                        // Mark that this row does NOT have a value
-                                        value_entered[i] = false;
-                                        isValid = false;
-                                      } else {
-                                        value_entered[i] = true;
-
-                                       // SaveWaste();
-                                      }
-                                    }
-
-                                    // Trigger error message if any value is empty
-                                    if (!isValid) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Please fill all Received Quantity fields.',
-                                          ),
-                                        ),
-                                      );
-                                      return; // Exit early, do not proceed
-                                    }
                                   },
                                   color: Colors.deepOrange,
                                 ),
                               ),
-                              SizedBox(
-                                width: responsiveWidth(150),
-                                child: AppButton(
-                                  padding: const EdgeInsets.symmetric(
-                                    vertical: 5,
-                                    horizontal: 15,
-                                  ),
-                                  text: 'Cancel',
-                                  onPressed: () => Navigator.pop(context),
-                                  color: Colors.grey.shade400,
-                                ),
-                              ),
-                            ],
-                          ),
+
                         ],
                       ),
                     ),
@@ -336,6 +392,131 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
             ), offlineChild: Offline()));
   }
 
+
+
+
+  // Widget _buildTable() {
+  //   return Table(
+  //       border: TableBorder.all(
+  //         color: Colors.grey.shade400,
+  //         borderRadius: BorderRadius.circular(10),
+  //       ),
+  //       columnWidths: const {
+  //         0: FlexColumnWidth(0.13),
+  //         1: FlexColumnWidth(1),
+  //         2: FlexColumnWidth(1),
+  //
+  //         4: FlexColumnWidth(1.5),
+  //
+  //         6: FlexColumnWidth(1),
+  //         7: FlexColumnWidth(1),
+  //       },
+  //       children: [
+  //         TableRow(
+  //           decoration: const BoxDecoration(
+  //             borderRadius: BorderRadius.only(
+  //               topRight: Radius.circular(10),
+  //               topLeft: Radius.circular(10),
+  //             ),
+  //             color: Colors.grey,
+  //           ),
+  //           children: _tableHeaders([
+  //             " ",
+  //             "Category",
+  //
+  //             "Qty by HCF",
+  //
+  //             'Received By CBWTF',
+  //             "Disposed By CBWTF",
+  //
+  //             "Difference in Qty",
+  //             "",
+  //           ]),
+  //         ),
+  //         for (int i = 0; i < rows.length; i++) _buildDataRow(rows[i], i),
+  //       ],
+  //
+  //   );
+  // }
+  //
+  // TableRow _buildDataRow(Map<String, dynamic> item, int index) {
+  //   final colourType = item['wasteTypeColour'] ?? 'Green';
+  //   final pickupQty = (item['totalQuantityBagKg'] ?? 0).toDouble();
+  //   final bycbwtf = (item['pickupTotalQuantityBagCbwtfKg'] ?? 0).toDouble();
+  //
+  //   final color = _getColorFromType(colourType);
+  //   final diff = _getDiff(index, bycbwtf);
+  //
+  //   return TableRow(
+  //     children: [
+  //       Container(height: 70, color: color),
+  //       _tableCell(item['wasteTypeColour']),
+  //
+  //       _tableCell("$pickupQty kg"),
+  //
+  //       _tableCell("$bycbwtf kg"),
+  //
+  //       // _tableCell("$byvehicle kg"),
+  //       Padding(
+  //         padding: const EdgeInsets.only(
+  //           top: 10,
+  //           bottom: 10,
+  //           left: 5,
+  //           right: 5,
+  //         ),
+  //         child: TextFormField(
+  //           controller: _receivedQtyControllers[index],
+  //           style: TextStyle(fontSize: 11),
+  //           onChanged:
+  //               (_) => setState(() {
+  //                 if (_receivedQtyControllers[index].text.isEmpty) {
+  //                   value_entered[index] = false;
+  //                 } else {
+  //                   value_entered[index] = true;
+  //                 }
+  //               }),
+  //           keyboardType: TextInputType.number,
+  //           decoration: InputDecoration(
+  //             suffixText: 'Kg',
+  //             suffixStyle: const TextStyle(fontSize: 10),
+  //             isDense: true,
+  //             contentPadding: const EdgeInsets.symmetric(
+  //               vertical: 6,
+  //               horizontal: 8,
+  //             ),
+  //             border: OutlineInputBorder(
+  //               borderRadius: BorderRadius.circular(6),
+  //             ),
+  //             enabledBorder: OutlineInputBorder(
+  //               borderSide: BorderSide(color: Colors.grey.shade400),
+  //               borderRadius: BorderRadius.circular(6),
+  //             ),
+  //           ),
+  //           textAlign: TextAlign.center,
+  //         ),
+  //       ),
+  //       _tableCell("${diff.toStringAsFixed(2)} kg"),
+  //
+  //       Center(
+  //         child: IconButton(
+  //           onPressed: () {
+  //             setState(() {
+  //               print(value_entered[index]);
+  //               if (_receivedQtyControllers[index].text.isEmpty) {
+  //                 setState(() {
+  //                   value_entered[index] = false;
+  //                 });
+  //               }
+  //               value_entered[index] = !value_entered[index];
+  //             });
+  //           },
+  //           icon: Icon(Icons.check_circle),
+  //           color: value_entered[index] ? Colors.green : Colors.grey,
+  //         ),
+  //       ),
+  //     ],
+  //   );
+  // }
   Widget _buildTable() {
     return Table(
       border: TableBorder.all(
@@ -343,36 +524,37 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
         borderRadius: BorderRadius.circular(10),
       ),
       columnWidths: const {
-        0: FlexColumnWidth(0.13),
+        0: FlexColumnWidth(0.5),
         1: FlexColumnWidth(1),
-        2: FlexColumnWidth(1),
+        2: FlexColumnWidth(1.25),
 
-        4: FlexColumnWidth(1.5),
+        3: FlexColumnWidth(1),
 
-        6: FlexColumnWidth(1),
-        7: FlexColumnWidth(1),
+        4: FlexColumnWidth(1),
+        5: FlexColumnWidth(0.9),
       },
       children: [
         TableRow(
           decoration: const BoxDecoration(
             borderRadius: BorderRadius.only(
-              topRight: Radius.circular(10),
               topLeft: Radius.circular(10),
+              topRight: Radius.circular(10),
             ),
-            color: Colors.grey,
+
+            gradient: LinearGradient(
+              colors: [kPrimaryColor, kPrimaryDarkColor],
+            ),
           ),
           children: _tableHeaders([
-            "",
-            "Category",
+            "Sr.No",
+            "Vehicle No",
 
-            "Qty by HCF",
+            "Reception Date",
 
+            'Total No of Bags',
+            "Total Waste Generated",
 
-            'Received By CBWTF',
-            "Disposed By CBWTF",
-
-            "Difference in Qty",
-            "",
+            "Select",
           ]),
         ),
         for (int i = 0; i < rows.length; i++) _buildDataRow(rows[i], i),
@@ -380,83 +562,49 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
     );
   }
 
+  String formatDate(String dateStr) {
+    try {
+      DateTime parsedDate = DateTime.parse(dateStr);
+      return DateFormat('dd/MM/yyyy').format(parsedDate);
+    } catch (e) {
+      return 'Invalid date';
+    }
+  }
+
   TableRow _buildDataRow(Map<String, dynamic> item, int index) {
+    bool isSelected = selectedRows.contains(item);
 
-    final colourType = item['wasteTypeColour'] ?? 'Green';
-    final pickupQty = (item['totalQuantityBagKg'] ?? 0).toDouble();
-    final bycbwtf = (item['pickupTotalQuantityBagCbwtfKg'] ?? 0).toDouble();
-
-
-
-    final color = _getColorFromType(colourType);
-    final diff = _getDiff(index, bycbwtf);
 
     return TableRow(
       children: [
-        Container(height: 70, color: color),
-        _tableCell(item['wasteTypeColour']),
+        // Container(height: 70, color: color),
+        _tableCell("${index + 1}"),
 
-        _tableCell("$pickupQty kg"),
+        _tableCell(item['vehicleNo']),
+        _tableCell(formatDate(item['assignDateCbwtf'])),
 
-        _tableCell("$bycbwtf kg"),
-        // _tableCell("$byvehicle kg"),
-
+        _tableCell(item['totalNoOfBags'].toString()),
+        _tableCell(item['totalQuantityBagKg'].toString()),
+        // ✅ Select column
         Padding(
-          padding: const EdgeInsets.only(
-            top: 10,
-            bottom: 10,
-            left: 5,
-            right: 5,
-          ),
-          child: TextFormField(
-            controller: _receivedQtyControllers[index],
-            style: TextStyle(fontSize: 11),
-            onChanged:
-                (_) => setState(() {
-              if (_receivedQtyControllers[index].text.isEmpty) {
-                value_entered[index] = false;
-              }
-              else {value_entered[index]=true;}
-            }),
-            keyboardType: TextInputType.number,
-            decoration: InputDecoration(
-              suffixText: 'Kg',
-              suffixStyle: const TextStyle(fontSize: 10),
-              isDense: true,
-              contentPadding: const EdgeInsets.symmetric(
-                vertical: 6,
-                horizontal: 8,
-              ),
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(6),
-              ),
-              enabledBorder: OutlineInputBorder(
-                borderSide: BorderSide(color: Colors.grey.shade400),
-                borderRadius: BorderRadius.circular(6),
-              ),
+          padding: const EdgeInsets.all(2.0),
+          child: Center(
+            child: Checkbox(
+              value: isSelected,
+              onChanged: (bool? value) {
+                setState(() {
+                  if (value == true) {
+                    selectedRows.add(item);
+                  } else {
+                    selectedRows.remove(item);
+                  }
+                });
+              },
             ),
-            textAlign: TextAlign.center,
           ),
         ),
-        _tableCell("${diff.toStringAsFixed(2)} kg"),
 
-        Center(
-          child: IconButton(
-            onPressed: () {
-              setState(() {
-                print(value_entered[index]);
-                if (_receivedQtyControllers[index].text.isEmpty) {
-                  setState(() {
-                    value_entered[index] = false;
-                  });
-                }
-                value_entered[index] = !value_entered[index];
-              });
-            },
-            icon: Icon(Icons.check_circle),
-            color: value_entered[index] ? Colors.green : Colors.grey,
-          ),
-        ),
+
       ],
     );
   }
@@ -465,18 +613,18 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
     return headers
         .map(
           (h) => Padding(
-        padding: const EdgeInsets.all(8),
-        child: Text(
-          h,
-          textAlign: TextAlign.center,
-          style: const TextStyle(
-            color: Colors.white,
-            fontWeight: FontWeight.bold,
-            fontSize: 10,
+            padding: const EdgeInsets.all(8),
+            child: Text(
+              h,
+              textAlign: TextAlign.center,
+              style: const TextStyle(
+                color: Colors.white,
+                fontWeight: FontWeight.bold,
+                fontSize: 10,
+              ),
+            ),
           ),
-        ),
-      ),
-    )
+        )
         .toList();
   }
 
@@ -548,9 +696,9 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
                       Navigator.pushAndRemoveUntil(
                         context,
                         MaterialPageRoute(
-                          builder: (context) => VehicleListScreen(),
+                          builder: (context) => WasteReceivedByvehicle(),
                         ),
-                            (Route<dynamic> route) => false,
+                        (Route<dynamic> route) => false,
                       );
                       //Navigator.of(context).popUntil(ModalRoute.withName(AppRoutes.biowaste_received_byvehicle));
                     },

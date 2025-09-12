@@ -50,7 +50,7 @@ PreferredSizeWidget mAppBar({
             ? Text(
           scTitle,
           style: TextStyle(
-            fontSize: responsiveFont(16),
+            fontSize:14,
             fontWeight: FontWeight.w500,
             color: kWhiteColor,
           ),

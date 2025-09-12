@@ -31,6 +31,7 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
   bool load=false;
   bool save=false;
   List<TextEditingController> _receivedQtyControllers = [];
+  List<TextEditingController> _receivedbagsControllers = [];
   List<bool> value_entered = [];
 
   double _getDiff(int index, double pickupQty) {
@@ -44,74 +45,40 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
     super.initState();
     fetchTableData();
   }
+  bool isSaving = false;
+
   Future<void> SaveWaste() async {
+    if (isSaving) return; // 🚫 Prevent multiple calls
+    isSaving = true;
     setState(() => save = true);
 
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('Token') ?? '';
-      final username = prefs.getString('Username') ?? '';
       final userId = prefs.getString('UserId') ?? '';
 
       final nowUtc = DateTime.now().toUtc().toIso8601String();
 
       final body = List.generate(rows.length, (i) {
         final item = rows[i];
-
+        final receivedBags=double.tryParse(_receivedbagsControllers[i].text.trim())??item['totalNoOfBags'];
         final receivedQty =
             double.tryParse(_receivedQtyControllers[i].text.trim()) ?? 0.0;
-
         final pickupQty =
         (item['pickupTotalQuantityBagCbwtfKg'] ?? 0).toDouble();
-        final pickupBags = item['pickupNoOfbag'] ?? 0;
 
         return {
           "lookupDetIdCategory": item['lookupDetIdCategory'],
-          "recivedTotalNoOfBags": pickupBags,
-          "recivedTotalQuantityBagKg":pickupQty,
+          "recivedTotalNoOfBags": receivedBags,
+          "recivedTotalQuantityBagKg": receivedQty,
           "totalNoOfBags": item['totalNoOfBags'],
           "totalQuantityBagKg": item['totalQuantityBagKg'],
           "vehicleNo": widget.vehicleNo,
-          "userId":userId
-
-
-
-          // "hcfWasteId": item['hcfWasteId'],
-          // "hcfId": item['hcfId'],
-          // "vehicleCount": item['vehicleCount'],
-          // "hcfWasteQntyDetId": item['hcfWasteQntyDetId'],
-          // "hcfCode": item['hcfCode'],
-          // "cbmtfFacilityName": item['cbmtfFacilityName'],
-          // "barcodeNo": item['barcodeNo'],
-          // "nameOfHcf": item['nameOfHcf'],
-          // "totalNoOfBags": pickupBags,
-          // "totalQuantityBagKg": pickupQty,
-          // "hcfName": item['nameOfHcf'],
-          // "userId": userId,
-          // "wastecolourId": item['wastecolourId'],
-          // "wasteQtyId": item['wasteQtyId'],
-          // "colourType": item['colourType'],
-          // "receivedBag": pickupBags,
-          // "receivedQty": pickupQty,
-          // "pickupNoOfbag": pickupBags,
-          // "puckupQty": pickupQty,
-          // "differenceInQty": pickupQty - receivedQty,
-          // "hcfWasteVehicleAssignId": item['hcfWasteVehicleAssignId'],
-          // "pickupTotalQuantityBagKg": pickupQty,
-          // "diffrenceInBag": pickupBags - (item['receivedBag'] ?? 0),
-          // "differenceInQtyCbwtf":  pickupQty - receivedQty,
-          // "differenceInQtyCbwtfDisposal": pickupQty - receivedQty,
-          // "assignDateCbwtf": item['assignDateCbwtf'],
-          // "assignDateCbwtfDisposal": nowUtc,
-          // "pickupTotalQuantityBagCbwtfKg": pickupQty,
-          // "pickupTotalQuantityBagCbwtfDisposalKg":pickupQty
-
-
-
+          "userId": userId,
         };
       });
 
-      print(jsonEncode(body));
+      print("Payload => ${jsonEncode(body)}");
 
       final response = await http.post(
         Uri.parse('$baseurl$SAVE_OVERALL_DATA'),
@@ -122,11 +89,12 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
         body: jsonEncode(body),
       );
 
-      print('$baseurl$SAVE_OVERALL_DATA');
-      print(response.body);
+      print("API: $baseurl$SAVE_OVERALL_DATA");
+      print("Response: ${response.body}");
 
       if (response.statusCode == 200) {
         final responseData = jsonDecode(response.body);
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(responseData['message'])),
         );
@@ -134,16 +102,20 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
       } else if (response.statusCode == 401) {
         AuthService().logout(context);
       } else {
+        if (!mounted) return;
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Submission failed.')),
+          const SnackBar(content: Text('Submission failed.')),
         );
       }
     } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error: $e')),
-      );
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Error: $e')),
+        );
+      }
     } finally {
-      setState(() => save = false);
+      isSaving = false;
+      if (mounted) setState(() => save = false);
     }
   }
 
@@ -167,6 +139,8 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
       if (response.statusCode == 200) {
         Map<String, dynamic> value = json.decode(response.body);
         List<dynamic> data = value['data'] ?? [];
+        print(data);
+        print(data.length);
 
         // Group and sort by colour
         data.sort((a, b) {
@@ -181,6 +155,7 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
             rows.length,
                 (_) => TextEditingController(),
           );
+          _receivedbagsControllers=List.generate(rows.length,  (_) => TextEditingController(),);
           value_entered = List.generate(rows.length, (_) => false);
           load = false;
           isLoading = false;
@@ -248,7 +223,7 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
                               color: kPrimaryColor,
                             ),
                           )
-                              : Row(
+                              : SafeArea(child: Row(
                             mainAxisAlignment:
                             MainAxisAlignment.spaceEvenly,
                             children: [
@@ -276,6 +251,16 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
                                         // Mark that this row does NOT have a value
                                         value_entered[i] = false;
                                         isValid = false;
+                                        ScaffoldMessenger.of(
+                                          context,
+                                        ).showSnackBar(
+                                          const SnackBar(
+                                            content: Text(
+                                              'Please fill all Received Quantity fields.',
+                                            ),
+                                          ),
+                                        );
+                                        return;
                                       } else {
                                         value_entered[i] = true;
 
@@ -283,19 +268,19 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
                                       }
                                     }
 
-                                    // Trigger error message if any value is empty
-                                    if (!isValid) {
-                                      ScaffoldMessenger.of(
-                                        context,
-                                      ).showSnackBar(
-                                        const SnackBar(
-                                          content: Text(
-                                            'Please fill all Received Quantity fields.',
-                                          ),
-                                        ),
-                                      );
-                                      return; // Exit early, do not proceed
-                                    }
+                                    // // Trigger error message if any value is empty
+                                    // if (!isValid) {
+                                    //   ScaffoldMessenger.of(
+                                    //     context,
+                                    //   ).showSnackBar(
+                                    //     const SnackBar(
+                                    //       content: Text(
+                                    //         'Please fill all Received Quantity fields.',
+                                    //       ),
+                                    //     ),
+                                    //   );
+                                    //   return; // Exit early, do not proceed
+                                    // }
                                   },
                                   color: Colors.deepOrange,
                                 ),
@@ -314,7 +299,7 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
                               ),
                             ],
                           ),
-                        ],
+                          ) ],
                       ),
                     ),
                   ),
@@ -331,13 +316,14 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
       ),
       columnWidths: const {
         0: FlexColumnWidth(0.15),
-        1: FlexColumnWidth(1.2),
-        2: FlexColumnWidth(1),
-        3: FlexColumnWidth(1.5),
-        4: FlexColumnWidth(1),
+        1: FlexColumnWidth(1),
+        2: FlexColumnWidth(0.8),
+        3: FlexColumnWidth(0.8),
+        4: FlexColumnWidth(1.3),
+        5: FlexColumnWidth(1.3),
 
         6: FlexColumnWidth(1),
-        7: FlexColumnWidth(1),
+        7: FlexColumnWidth(0.7),
       },
       children: [
         TableRow(
@@ -353,10 +339,12 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
           children: _tableHeaders([
             "",
             "Category",
+            "Total Bags",
 
-            "Qty by HCF",
+            "Total Weight",
 
-            'Received By CBWTF',
+            'Received Bags',
+            'Received Weight',
 
             "Difference in Qty",
             "",
@@ -381,9 +369,47 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
       children: [
         Container(height: 70, color: color),
         _tableCell(item['wasteTypeColour']),
+        _tableCell(item['totalNoOfBags'].toString()),
 
         _tableCell("$pickupQty kg"),
        // _tableCell("$byvehicle kg"),
+        Padding(
+          padding: const EdgeInsets.only(
+            top: 10,
+            bottom: 10,
+            left: 5,
+            right: 5,
+          ),
+          child: TextFormField(
+            controller: _receivedbagsControllers[index],
+            style: TextStyle(fontSize: 11),
+            onChanged:
+                (_) => setState(() {
+              // if (_receivedbagsControllers[index].text.isEmpty) {
+              //   value_entered[index] = false;
+              // }
+              // else{value_entered[index]=true;}
+            }),
+            keyboardType: TextInputType.number,
+            decoration: InputDecoration(
+
+              suffixStyle: const TextStyle(fontSize: 10),
+              isDense: true,
+              contentPadding: const EdgeInsets.symmetric(
+                vertical: 6,
+                horizontal: 8,
+              ),
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(6),
+              ),
+              enabledBorder: OutlineInputBorder(
+                borderSide: BorderSide(color: Colors.grey.shade400),
+                borderRadius: BorderRadius.circular(6),
+              ),
+            ),
+            textAlign: TextAlign.center,
+          ),
+        ),
 
         Padding(
           padding: const EdgeInsets.only(

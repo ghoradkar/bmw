@@ -18,6 +18,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../CBWTF_Disposal/disposal_overall_colection.dart';
+import '../CBWTF_Reception/overall_Data_collection.dart';
 import '../Global/app_routes.dart';
 import 'forget_password.dart';
 
@@ -35,6 +36,7 @@ class _LoginScreenState extends State<LoginScreen> {
   bool keepMeSignedIn = true;
   bool isLoading = false;
   String? userRole;
+  bool isobscured=false;
   bool _isLoading = true;
   List<Map<String, dynamic>> _tableData = [];
   List <Map<String, dynamic>> formattedList=[];
@@ -269,12 +271,26 @@ class _LoginScreenState extends State<LoginScreen> {
         Navigator.push(
           context,
           MaterialPageRoute(
-            builder: (_) => DisposalOverallCollection(formattedList),
+            builder: (_) => DisposalOverallCollection(),
           ),
         );
       }
       return;
     }
+    // if(role=="CBWT Reception User"){
+    //   if (bulk == 'N') {
+    //     Navigator.of(context).popAndPushNamed(AppRoutes.vehicle_screen);
+    //   } else {
+    //     Navigator.push(
+    //       context,
+    //       MaterialPageRoute(
+    //         builder: (_) => OverallDataCollection(),
+    //       ),
+    //     );
+    //   }
+    //   return;
+
+
 
     final routeMap = {
       'HCF User': AppRoutes.hcf_biowasteScreen,
@@ -437,95 +453,116 @@ class _LoginScreenState extends State<LoginScreen> {
               fit: BoxFit.cover,
             ),
           ),
+
           // Login form card
           Align(
             alignment: Alignment.bottomCenter,
             child: SingleChildScrollView(
-              child: Container(
-                margin: const EdgeInsets.symmetric(horizontal: 15),
-                padding: const EdgeInsets.all(20),
-                decoration: BoxDecoration(
-                  color: Colors.white,
-                  borderRadius: BorderRadius.only(topLeft: Radius.circular(24),
-                  topRight: Radius.circular(24)),
-                ),
-                child: Form(
-                  key: _formKey,
-                  child: Column(
-                    children: [
-                      Image.asset(logo, width: 100),
-                      const SizedBox(height: 10),
-                      const Text(
-                        'Bio Waste App',
-                        style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 30),
-                      const Text(
-                        'Sign In',
-                        style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
-                      ),
-                      const SizedBox(height: 8),
-                      const Text(
-                        'Welcome! Enter username & password\n to continue.',
-                        textAlign: TextAlign.center,
-                        style: TextStyle(fontSize: 13),
-                      ),
-                      const SizedBox(height: 20),
+              child: SafeArea( // ✅ Fix: respects navigation bar & notch
+                top: false, // keep only bottom safe padding
+                child: Container(
+                  margin: const EdgeInsets.symmetric(horizontal: 15),
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: const BorderRadius.only(
+                      topLeft: Radius.circular(24),
+                      topRight: Radius.circular(24),
+                    ),
+                  ),
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
+                      children: [
+                        Image.asset(logo, width: 100),
+                        const SizedBox(height: 10),
+                        const Text(
+                          'Bio Waste App',
+                          style: TextStyle(
+                              fontSize: 18, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 30),
+                        const Text(
+                          'Sign In',
+                          style: TextStyle(
+                              fontSize: 20, fontWeight: FontWeight.bold),
+                        ),
+                        const SizedBox(height: 8),
+                        const Text(
+                          'Welcome! Enter username & password\n to continue.',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13),
+                        ),
+                        const SizedBox(height: 20),
 
-                      // Username
-                      AppTextfield(
-                        hintText: "Username",
-                        controller: _usernameController,
-                        prefixIcon: Icons.person_outline_outlined,
-                        validator: (value) =>
-                        value == null || value.isEmpty ? 'Please enter username' : null,
-                      ),
-                      const SizedBox(height: 16),
+                        // Username
+                        AppTextfield(
+                          hintText: "Username",
+                          controller: _usernameController,
+                          prefixIcon: Icons.person_outline_outlined,
+                          validator: (value) => value == null || value.isEmpty
+                              ? 'Please enter username'
+                              : null,
+                        ),
+                        const SizedBox(height: 16),
 
-                      // Password
-                      AppTextfield(
-                        controller: _passwordController,
-                        prefixIcon: Icons.password,
-                        obscureText: true,
-                        validator: (value) =>
-                        value == null || value.isEmpty ? 'Enter password' : null, hintText: 'Password',
+                        // Password
+                        AppTextfield(
+                          controller: _passwordController,
+                          prefixIcon: Icons.password,
+                          suffixIcon: GestureDetector(
+                            onTap: (){
+                              setState(() {
+                                isobscured=! isobscured;
+                              });
+                            },
+                              child:Icon(Icons.remove_red_eye_outlined,color: isobscured?kPrimaryColor:Colors.grey,)),
+                          obscureText: isobscured,
+                          validator: (value) => value == null || value.isEmpty
+                              ? 'Enter password'
+                              : null,
+                          hintText: 'Password',
+                        ),
 
-                      ),
-                      //const SizedBox(height: 10),
-                      Align(
-                        alignment: Alignment.bottomRight,
-                          child:TextButton(
-                        onPressed: () {},
-                        child: const Text('Forgot Password?',style: TextStyle(color: Colors.grey),),
-                      )),
-
-
-                          Row(
-                            children: [
-                              Checkbox(
-                                value: keepMeSignedIn,
-                                onChanged: (value) {
-                                  setState(() => keepMeSignedIn = value!);
-                                },
-                              ),
-                              const Text('Keep me Sign In'),
-                            ],
+                        Align(
+                          alignment: Alignment.bottomRight,
+                          child: TextButton(
+                            onPressed: () {},
+                            child: const Text(
+                              'Forgot Password?',
+                              style: TextStyle(color: Colors.grey),
+                            ),
                           ),
+                        ),
 
+                        Row(
+                          children: [
+                            Checkbox(
+                              value: keepMeSignedIn,
+                              onChanged: (value) {
+                                setState(() => keepMeSignedIn = value!);
+                              },
+                            ),
+                            const Text('Keep me Sign In'),
+                          ],
+                        ),
 
-                      const SizedBox(height: 20),
+                        const SizedBox(height: 20),
 
-                      // Sign in button
-    AppButton(
-    text: 'Sign In',
-    onPressed: (){
-      _login(_usernameController.text, _passwordController.text);
-     },
-    isLoading: isLoading, color: Colors.deepOrange,
-      padding:  EdgeInsets.symmetric(vertical: 5, horizontal: 18),
-    )
-
-                    ],
+                        // Sign in button
+                        AppButton(
+                          text: 'Sign In',
+                          onPressed: () {
+                            _login(_usernameController.text,
+                                _passwordController.text);
+                          },
+                          isLoading: isLoading,
+                          color: Colors.deepOrange,
+                          padding: const EdgeInsets.symmetric(
+                              vertical: 5, horizontal: 18),
+                        ),
+                      ],
+                    ),
                   ),
                 ),
               ),
@@ -535,4 +572,5 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
+
 }

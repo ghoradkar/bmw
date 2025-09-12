@@ -12,11 +12,17 @@ import '../network/network_status.dart';
 import '../network/offline.dart';
 
 class ReceptionScanner extends StatefulWidget {
+  final List<dynamic> rows;
+  final List<TextEditingController> _receivedQtyControllers;
+  final List<bool> value_entered;
 
-  final  List<dynamic> rows;
-  final List<TextEditingController>_receivedQtyControllers;
-  final List<bool>value_entered;
-ReceptionScanner(this.rows,this._receivedQtyControllers,this.value_entered,{super.key});
+  const ReceptionScanner(
+      this.rows,
+      this._receivedQtyControllers,
+      this.value_entered, {
+        super.key,
+      });
+
   @override
   _ReceptionScannerState createState() => _ReceptionScannerState();
 }
@@ -30,25 +36,34 @@ class _ReceptionScannerState extends State<ReceptionScanner> {
   @override
   void reassemble() {
     super.reassemble();
-    if (controller != null) {
-      if (mounted) {
-        controller!.pauseCamera();
-        controller!.resumeCamera();
-      }
+    if (controller != null && mounted) {
+      controller!.pauseCamera();
+      controller!.resumeCamera();
     }
   }
 
-  void _onQRViewCreated(QRViewController controller) {
-    this.controller = controller;
-    controller.scannedDataStream.listen((scanData) {
+  void _onQRViewCreated(QRViewController ctrl) {
+    controller = ctrl;
+    ctrl.scannedDataStream.listen((scanData) async {
       if (!isNavigated && scanData.code != null) {
-        setState(() => _scannedCode = 'Scanned: ${scanData.code}');
         isNavigated = true;
+        setState(() => _scannedCode = 'Scanned: ${scanData.code}');
+
+        // 👇 Stop camera before navigating
+        await controller?.pauseCamera();
+      //  await controller?.dispose();
+
+        if (!mounted) return;
 
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => ReceptionAfterScan(barcode: scanData.code!, rows: widget.rows, receivedQtyControllers: widget._receivedQtyControllers, value_entered: widget.value_entered,),
+            builder: (context) => ReceptionAfterScan(
+              barcode: scanData.code!,
+              rows: widget.rows,
+              receivedQtyControllers: widget._receivedQtyControllers,
+              value_entered: widget.value_entered,
+            ),
           ),
         );
       }
@@ -57,6 +72,7 @@ class _ReceptionScannerState extends State<ReceptionScanner> {
 
   @override
   void dispose() {
+    controller?.pauseCamera();
     controller?.dispose();
     super.dispose();
   }
@@ -85,7 +101,8 @@ class _ReceptionScannerState extends State<ReceptionScanner> {
                 top: responsiveHeight(110),
                 bottom: responsiveHeight(0),
                 child: Container(
-                  padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 30),
+                  padding:
+                  const EdgeInsets.symmetric(horizontal: 10, vertical: 30),
                   decoration: BoxDecoration(
                     color: kWhiteColor,
                     borderRadius: const BorderRadius.only(
@@ -97,17 +114,44 @@ class _ReceptionScannerState extends State<ReceptionScanner> {
                     children: [
                       Expanded(
                         flex: 4,
-                        child: QRView(
-                          key: qrKey,
-                          onQRViewCreated: _onQRViewCreated,
+                        child: SizedBox(
+                          width: double.infinity,
+                          height: 300, // 👈 Fixed height prevents null context
+                          child: QRView(
+                            key: qrKey,
+                            onQRViewCreated: _onQRViewCreated,
+                            overlay: QrScannerOverlayShape(
+                              borderColor: Colors.deepOrange,
+                              borderRadius: 12,
+                              borderLength: 30,
+                              borderWidth: 8,
+                              cutOutSize: 250,
+                            ),
+                            onPermissionSet: (ctrl, p) {
+                              if (!p) {
+                                ScaffoldMessenger.of(context).showSnackBar(
+                                  const SnackBar(
+                                    content: Text(
+                                        'Camera permission denied. Please enable it in settings.'),
+                                  ),
+                                );
+                              }
+                            },
+                          ),
                         ),
                       ),
                       const SizedBox(height: 20),
-                      Text(_scannedCode),
+                      Text(
+                        _scannedCode,
+                        style: const TextStyle(
+                          fontSize: 16,
+                          fontWeight: FontWeight.w500,
+                        ),
+                      ),
                       const SizedBox(height: 20),
                       ElevatedButton.icon(
-                        onPressed: () {
-                          controller?.resumeCamera();
+                        onPressed: () async {
+                          await controller?.resumeCamera();
                           setState(() {
                             _scannedCode = 'Scanning...';
                             isNavigated = false;
@@ -117,6 +161,11 @@ class _ReceptionScannerState extends State<ReceptionScanner> {
                         label: const Text("Scan Again"),
                         style: ElevatedButton.styleFrom(
                           backgroundColor: Colors.deepOrange,
+                          padding: const EdgeInsets.symmetric(
+                              horizontal: 20, vertical: 12),
+                          shape: RoundedRectangleBorder(
+                            borderRadius: BorderRadius.circular(12),
+                          ),
                         ),
                       )
                     ],
@@ -126,7 +175,7 @@ class _ReceptionScannerState extends State<ReceptionScanner> {
             ],
           ),
         ),
-        offlineChild: Offline(),
+        offlineChild:  Offline(),
       ),
     );
   }

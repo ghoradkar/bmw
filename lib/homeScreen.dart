@@ -29,7 +29,7 @@ class _Homescreen extends State<Homescreen>{
     /// Body with tabs
     Positioned.fill(
     top: responsiveHeight(110),
-    bottom: responsiveHeight(0),// offset to appear below custom app bar
+    bottom: responsiveHeight(0),// offset to appear below  custom app bar
     child: Container(
 
     decoration: BoxDecoration(

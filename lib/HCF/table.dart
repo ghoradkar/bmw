@@ -50,12 +50,15 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
       hcfCode: user['hcfCode'],
       wasteQntyDate: DateFormat('dd/MM/yyyy').format(DateTime.now()),
       userId: user['userId'],
-      createdDate: DateTime.now().toUtc().toIso8601String(),
-      updatedDate: DateTime.now().toUtc().toIso8601String(),
+      createdDate: DateTime.now().toIso8601String(),
+      updatedDate: DateTime.now().toIso8601String(),
       macId: "00-14-22-01-23-45",
       ipAddress: "192.168.1.1",
     );
     print('payload');
+    print(DateTime.now().toIso8601String());
+    print(DateTime.now().toLocal().toIso8601String());
+    print(DateTime.now().toUtc());
     print(jsonEncode(payload));
 
 

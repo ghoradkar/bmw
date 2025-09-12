@@ -1,10 +1,14 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:mpcb_bio_waste/CBWTF/apiservice.dart';
+import 'package:mpcb_bio_waste/CBWTF_Disposal/filter.dart';
 import 'package:mpcb_bio_waste/CBWTF_Reception/view_details_after_Scan.dart';
 import 'package:mpcb_bio_waste/Global/size_config.dart';
 import 'package:mpcb_bio_waste/Global/url.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import '../CBWTF_Disposal/disposal_overall_colection.dart';
 import '../HCF/filter.dart';
 import '../authentication/logout.dart';
 import 'app_routes.dart';
@@ -20,19 +24,37 @@ class _AppDrawerState extends State<AppDrawer> {
   String username = '';
   String email = '';
   String? userRole ;
+  Map<String, dynamic>? user;
 
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
   }
-  void _redirectToRoleScreen(String? role) {
+  void _redirectToRoleScreen(String? role) async {
+    SharedPreferences prefs = await SharedPreferences.getInstance();
+    user=await jsonDecode(prefs.getString('user')!);
+    print('user');
+    if (userRole == 'Disposal User') {
+      if ( user!['bulkDataSaveFlag']=='N') {
+        Navigator.of(context).popAndPushNamed(AppRoutes.waste_received_byvehicle);
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DisposalOverallCollection(),
+          ),
+        );
+      }
+      return;
+    }
+
     final routeMap = {
       'HCF User': AppRoutes.hcf_biowasteScreen,
       'CBWT User': AppRoutes.nearby_hcf,
       //  'CBWT User': AppRoutes.nearby_hcf,
       'CBWT Reception User': AppRoutes.vehicle_screen,
-      'Disposal User': AppRoutes.waste_received_byvehicle,
+      //'Disposal User': AppRoutes.waste_received_byvehicle,
       'Vehicle  User': AppRoutes.vehicle_nearby_hcf,
     };
 
@@ -134,6 +156,28 @@ class _AppDrawerState extends State<AppDrawer> {
                 // ...
               },
             ),
+            username== 'Disposal User'? ListTile(
+              leading: Icon(
+                Icons.receipt_long,
+                color: Colors.white,
+              ),
+              title: Text(
+                  'Search Disposal Data',
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15)),
+              onTap: () {
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>Filter_disposal()
+                  ),
+                );
+                // Update the state of the app.
+                // ...
+              },
+            ):SizedBox(),
            username== 'HCF User'? ListTile(
               leading: Icon(
                 Icons.receipt_long,

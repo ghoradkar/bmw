@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:mpcb_bio_waste/CBWTF_Reception/overall_Data_collection.dart';
 import 'package:mpcb_bio_waste/Global/dataNotFound.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -26,18 +27,36 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
   bool _isLoading=true;
    List<dynamic> vehicleNumbers = [];
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  Map<String,dynamic>?user;
+
+
 
   @override
   void initState() {
     super.initState();
+    fetchUsertype();
     fetchVehicleList();
   }
+  Future<void>fetchUsertype()async{
+    final prefs = await SharedPreferences.getInstance();
+
+    final userinfo=prefs.getString('user');
+    print('user');
+    print(jsonDecode(userinfo!));
+    setState(() {
+      user=jsonDecode(userinfo);
+    });
+
+
+  }
+
   Future<void> fetchVehicleList() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('Token') ?? '';
       final username = prefs.getString('Username');
      final UserId = prefs.getString('UserId');
+
 
       final response = await http.get(
         Uri.parse('${baseurl}${GET_VEHICLE_LIST}$UserId'),
@@ -152,10 +171,16 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
                         ),
                         GestureDetector(
                           onTap: () {
+                            user!['bulkDataSaveFlag']=='N'?
                             Navigator.push(
                               context,
                               MaterialPageRoute(
                                 builder: (context) => BiowasteReceivedByvehicle(vehicleNumbers[index]['vehicleNo']),
+                              ),
+                            ): Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>OverallDataCollection(vehicleNumbers[index]['vehicleNo']),
                               ),
                             );
                           },

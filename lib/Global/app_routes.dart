@@ -134,11 +134,11 @@ class AppRoutes {
           );
         case disposal_scan:
           return MaterialPageRoute(
-            builder: (_) => DisposalScanner(),
+            builder: (_) => DisposalScanner([],[],[]),
           );
         case disposal_after_scan:
           return MaterialPageRoute(
-            builder: (_) => DisposalAfterScan('',0),
+            builder: (_) => DisposalAfterScan('',0,[],[],[]),
           );
         case logout:
           return MaterialPageRoute(

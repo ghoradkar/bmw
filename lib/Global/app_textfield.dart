@@ -8,6 +8,7 @@ class AppTextfield extends StatelessWidget {
   final IconData? prefixIcon;
   final String? Function(String?)? validator;
   final TextInputType keyboardType;
+  final Widget? suffixIcon;
 
   const AppTextfield({
     Key? key,
@@ -17,6 +18,7 @@ class AppTextfield extends StatelessWidget {
     this.prefixIcon,
     this.validator,
     this.keyboardType = TextInputType.text,
+    this.suffixIcon
   }) : super(key: key);
 
   @override
@@ -33,6 +35,7 @@ class AppTextfield extends StatelessWidget {
         hintStyle: const TextStyle(color: Colors.grey),
         filled: true,
         fillColor:kWhiteColor,
+        suffix: suffixIcon,
         prefixIcon: prefixIcon != null
             ? ShaderMask(
           shaderCallback: (bounds) => const LinearGradient(

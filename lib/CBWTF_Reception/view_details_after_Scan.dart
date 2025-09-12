@@ -77,7 +77,7 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
         body: jsonEncode(body),
       );
 
-      print("API URL: ${baseurl}${FILTER}");
+      print("API URL: ${baseurl}${FILTER_HCF_DATA}");
       print("Status Code: ${response.statusCode}");
       print("Response Body: ${response.body}");
 

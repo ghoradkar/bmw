@@ -11,6 +11,10 @@ import '../network/network_status.dart';
 import '../network/offline.dart';
 
 class DisposalScanner extends StatefulWidget {
+  final  List<dynamic> rows;
+  final List<TextEditingController>_receivedQtyControllers;
+  final List<bool>value_entered;
+  DisposalScanner(this.rows,this._receivedQtyControllers,this.value_entered,{super.key});
   @override
   _DisposalScannerState createState() => _DisposalScannerState();
 }
@@ -39,7 +43,7 @@ class _DisposalScannerState extends State<DisposalScanner> {
         Navigator.pushReplacement(
           context,
           MaterialPageRoute(
-            builder: (context) => DisposalAfterScan(scanData.code ?? '', 0),
+            builder: (context) => DisposalAfterScan(scanData.code ?? '', 0,widget.rows,widget._receivedQtyControllers,widget.value_entered),
           ),
         );
       }

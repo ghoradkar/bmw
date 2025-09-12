@@ -128,7 +128,7 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
         //  rows=data['data'];
           for(int i=0;i<data['data'].length;i++){
             rows.add(data['data'][i]);
-            receivedQtyControllers.add(TextEditingController());
+            receivedQtyControllers.add(TextEditingController(text:data['data'][i]['pickupTotalQuantityBagKg'].toString()));
             value_entered.add(false);
           }
 
@@ -323,7 +323,7 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
                                   color: kPrimaryColor,
                                 ),
                               )
-                              : Row(
+                              : SafeArea(child: Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceEvenly,
                                 children: [
@@ -391,7 +391,7 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
                                   ),
                                 ],
                               ),
-                        ],
+                          ) ],
                       ),
             ),
           ),

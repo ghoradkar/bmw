@@ -45,26 +45,27 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
       return 'Invalid date';
     }
   }
-  List<Map<String, dynamic>> transformResponse(
-      List responseList,
-      {required int userId}) {
-    return responseList.map((item) {
-      return {
-        "cbwtfRecpDispIds": item["cbwtfRecpDispIds"],
-        "totalNoOfBags": item["totalNoOfBags"],
-        "totalQuantityBagKg": item["totalQuantityBagKg"],
-        "pickupNoOfbag": item["pickupNoOfbag"],
-        "pickupTotalQuantityBagCbwtfKg": item["pickupTotalQuantityBagCbwtfKg"],
-        "lookupDetIdCategory": 3,
-        "userId": userId
-      };
-    }).toList();
-  }
+  // List<Map<String, dynamic>> transformResponse(
+  //     List responseList,
+  //     {required int userId}) {
+  //   return responseList.map((item) {
+  //     return {
+  //       "cbwtfRecpDispIds": item["cbwtfRecpDispIds"],
+  //       "totalNoOfBags": item["totalNoOfBags"],
+  //       "totalQuantityBagKg": item["totalQuantityBagKg"],
+  //       "pickupNoOfbag": item["pickupNoOfbag"],
+  //       "pickupTotalQuantityBagCbwtfKg": item["pickupTotalQuantityBagCbwtfKg"],
+  //       "lookupDetIdCategory": 3,
+  //       "userId": userId
+  //     };
+  //   }).toList();
+  // }
   Future<void> fetchAssignedHCFData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('Token') ?? '';
       final UserId = prefs.getString('UserId');
+      final today=DateTime.now().toString().substring(0,10);
 
       final response = await http.get(
         Uri.parse('${baseurl}${GET_WASTE_RECEIVED_BY_VEHICLE}$UserId'),
@@ -75,12 +76,13 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
       print('${baseurl}${GET_WASTE_RECEIVED_BY_VEHICLE}$UserId');
       print(response.body);
       print(response.statusCode);
-    if (response.statusCode == 201) {
+    if (response.statusCode == 201
+    ) {
         Map<String,dynamic>value = jsonDecode(response.body);
         List data=value['data'];
-        print(data.length);
-        formattedList=transformResponse(data, userId: int.parse(UserId!));
-        print(formattedList);
+        print(data);
+        // formattedList=transformResponse(data, userId: int.parse(UserId!));
+        // print(formattedList);
 
 
 
@@ -252,7 +254,7 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
                                     Navigator.push(
                                       context,
                                       MaterialPageRoute(
-                                        builder: (context) => DisposalAfterScan('0',row['wasteId']),
+                                        builder: (context) => DisposalAfterScan('0',row['wasteId'],[],[],[]),
                                       ),
                                     );
 
@@ -271,27 +273,28 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
                         }),
                       ],
                     ),
-                    //  Spacer(),
-                    //   SizedBox(
-                    //     width: responsiveWidth(200),
-                    //     child: AppButton(
-                    //       padding: const EdgeInsets.symmetric(
-                    //         vertical: 10,
-                    //         horizontal: 15,
-                    //       ),
-                    //       text: 'Collect All',
-                    //       onPressed: () {
-                    //         Navigator.push(
-                    //           context,
-                    //           MaterialPageRoute(
-                    //             builder: (_) => DisposalOverallCollection(formattedList),
-                    //           ),
-                    //         );
-                    //
-                    //       },
-                    //       color: Colors.deepOrange,
-                    //     ),
-                    //   ),
+                   SizedBox(height: 15,),
+                   //  Spacer(),
+                      SizedBox(
+                        width: responsiveWidth(200),
+                        child: AppButton(
+                          padding: const EdgeInsets.symmetric(
+                            vertical: 10,
+                            horizontal: 15,
+                          ),
+                          text: 'Dispose All',
+                          onPressed: () {
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (_) => DisposalOverallCollection(),
+                              ),
+                            );
+
+                          },
+                          color: Colors.deepOrange,
+                        ),
+                      ),
 
                   ])))
               )])

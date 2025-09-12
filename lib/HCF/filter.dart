@@ -104,13 +104,10 @@ class _ViewDetailsState extends State<ViewDetails> {
       isLoadingColor = false;
     });
   }
-
-
   Future<void> fetchBioWasteSummary() async {
     setState(() => isLoading = true);
 
     try {
-
       SharedPreferences prefs = await SharedPreferences.getInstance();
       var token = prefs.getString('Token');
       var userJson = prefs.getString('user');
@@ -158,52 +155,125 @@ class _ViewDetailsState extends State<ViewDetails> {
         if (jsonResponse['status'] == 'Success') {
           final List<dynamic> data = jsonResponse['data'];
 
-          final Map<String, Map<String, double>> summary = {
-            'Yellow': {'quantity': 0, 'bags': 0},
-            'Red': {'quantity': 0, 'bags': 0},
-            'Blue': {'quantity': 0, 'bags': 0},
-            'White': {'quantity': 0, 'bags': 0},
-          };
+          summaryData= buildSummaryData(data);
 
-          for (final item in data) {
-            final colorId = item['wastecolourId'];
-            final colorName = wasteColorLookup[colorId] ?? 'Unknown';
 
-            final quantity = (item['totalQuantityBagKg'] ?? 0).toDouble();
-            final bags = (item['totalNoOfBags'] ?? 0).toDouble();
+          print("✅ Final Summary Data: $summaryData");
 
-            if (summary.containsKey(colorName)) {
-              summary[colorName]!['quantity'] =
-                  (summary[colorName]!['quantity'] ?? 0) + quantity;
-              summary[colorName]!['bags'] =
-                  (summary[colorName]!['bags'] ?? 0) + bags;
-            }
-          }
-
-          summaryData = summary.entries.map((entry) {
-            return {
-              'category': entry.key,
-              'quantity': entry.value['quantity'],
-              'bags': entry.value['bags'],
-            };
-          }).toList();
-
-          print("Summary Data: $summaryData");
           Navigator.pushReplacement(
             context,
             MaterialPageRoute(
               builder: (context) => BioWasteTableScreen(summaryData),
             ),
           );
+          // final Map<String, Map<String, double>> grouped = {};
+          //
+          // for (final item in data) {
+          //   final int? colorId = item['wastecolourId'];
+          //   final int? hcfWasteId = item['hcfWasteId'];
+          //   if (colorId == null || hcfWasteId == null) continue;
+          //
+          //   final String key = "$hcfWasteId-$colorId";
+          //
+          //   final double quantity = (item['totalQuantityBagKg'] ?? 0).toDouble();
+          //   final double bags = (item['totalNoOfBags'] ?? 0).toDouble();
+          //
+          //   // ✅ Accumulate instead of overwriting
+          //   if (!grouped.containsKey(key)) {
+          //     grouped[key] = {'quantity': 0, 'bags': 0};
+          //   }
+          //
+          //   grouped[key]!['quantity'] = (grouped[key]!['quantity'] ?? 0) + quantity;
+          //   grouped[key]!['bags'] = (grouped[key]!['bags'] ?? 0) + bags;
+          // }
+          //
+          //
+          // // /// ✅ Collapse duplicates by unique (hcfWasteId, wastecolourId)
+          // // final Map<String, Map<String, double>> grouped = {};
+          // //
+          // // for (final item in data) {
+          // //   final int? colorId = item['wastecolourId'];
+          // //   final int? hcfWasteId = item['hcfWasteId'];
+          // //   if (colorId == null || hcfWasteId == null) continue;
+          // //
+          // //   final String key = "$hcfWasteId-$colorId";
+          // //
+          // //   final double quantity = (item['totalQuantityBagKg'] ?? 0).toDouble();
+          // //   final double bags = (item['totalNoOfBags'] ?? 0).toDouble();
+          // //
+          // //   // overwrite or keep last entry (avoids double counting)
+          // //   grouped[key] = {
+          // //     'quantity': quantity,
+          // //     'bags': bags,
+          // //   };
+          // // }
+          // //
+          // // /// ✅ Initialize summary (lookupDetIds from your color master)
+          // // final Map<int, Map<String, double>> summary = {
+          // //   239: {'quantity': 0, 'bags': 0}, // Yellow
+          // //   240: {'quantity': 0, 'bags': 0}, // Red
+          // //   241: {'quantity': 0, 'bags': 0}, // Blue
+          // //   242: {'quantity': 0, 'bags': 0}, // White
+          // // };
+          // //
+          // // /// ✅ Aggregate from grouped map
+          // // grouped.forEach((key, values) {
+          // //   final int colorId = int.parse(key.split("-")[1]);
+          // //   if (summary.containsKey(colorId)) {
+          // //     summary[colorId]!['quantity'] =
+          // //         (summary[colorId]!['quantity'] ?? 0) + values['quantity']!;
+          // //     summary[colorId]!['bags'] =
+          // //         (summary[colorId]!['bags'] ?? 0) + values['bags']!;
+          // //   }
+          // // });
+          // //
+          // // /// ✅ Map lookup IDs to display names
+          // // final Map<int, String> colorLabels = {
+          // //   239: 'Yellow',
+          // //   240: 'Red',
+          // //   241: 'Blue',
+          // //   242: 'White',
+          // // };
+          // //
+          // // /// Build final summaryData in fixed order
+          // // summaryData = [
+          // //   {
+          // //     'category': colorLabels[239],
+          // //     'quantity': summary[239]!['quantity'],
+          // //     'bags': summary[239]!['bags'],
+          // //   },
+          // //   {
+          // //     'category': colorLabels[240],
+          // //     'quantity': summary[240]!['quantity'],
+          // //     'bags': summary[240]!['bags'],
+          // //   },
+          // //   {
+          // //     'category': colorLabels[241],
+          // //     'quantity': summary[241]!['quantity'],
+          // //     'bags': summary[241]!['bags'],
+          // //   },
+          // //   {
+          // //     'category': colorLabels[242],
+          // //     'quantity': summary[242]!['quantity'],
+          // //     'bags': summary[242]!['bags'],
+          // //   },
+          // // ];
+          // //
+          // // print("✅ Final Summary Data: $summaryData");
+          //
+          // Navigator.pushReplacement(
+          //   context,
+          //   MaterialPageRoute(
+          //     builder: (context) => BioWasteTableScreen(summaryData),
+          //   ),
+          // );
         } else {
-
           print("API returned failure: ${jsonResponse['message']}");
           ScaffoldMessenger.of(context).showSnackBar(
             SnackBar(content: Text(jsonResponse['message']), backgroundColor: Colors.red),
           );
         }
       } else {
-
         print("Failed response: ${response.statusCode}");
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text('${response.statusCode}'), backgroundColor: Colors.red),
@@ -221,7 +291,65 @@ class _ViewDetailsState extends State<ViewDetails> {
     });
   }
 
-  // wastecolourId -> Color Name
+  /// Build summary data that matches API "summaryData"
+  List<Map<String, dynamic>> buildSummaryData(List<dynamic> data) {
+    // per hcfWasteId + color → hold latest bags, sum qty
+    final Map<String, Map<String, num>> grouped = {};
+
+    for (final item in data) {
+      final int? colorIdRaw = item['wastecolourId'] is num
+          ? (item['wastecolourId'] as num).toInt()
+          : null;
+      final int? hcfWasteIdRaw =
+      item['hcfWasteId'] is num ? (item['hcfWasteId'] as num).toInt() : null;
+      if (colorIdRaw == null) continue;
+      final int colorId = colorIdRaw;
+      final int hcfWasteId = hcfWasteIdRaw ?? -1;
+
+      final num bagsNum = item['totalNoOfBags'] ?? 0;
+      final int bags =
+      (bagsNum is int) ? bagsNum : (bagsNum as num).toInt();
+      final double qty = (item['totalQuantityBagKg'] ?? 0).toDouble();
+
+      final String key = "$hcfWasteId-$colorId";
+      final g = grouped.putIfAbsent(key, () => {'bags': 0, 'qty': 0.0});
+
+      // overwrite bags (so duplicates don't stack)
+      g['bags'] = bags;
+      // always accumulate quantity
+      g['qty'] = (g['qty'] as double) + qty;
+    }
+
+    // final per-colour sums
+    final Map<int, int> totalBagsPerColor = {};
+    final Map<int, double> totalQtyPerColor = {};
+
+    grouped.forEach((k, v) {
+      final int color = int.parse(k.split("-")[1]);
+      totalBagsPerColor[color] =
+          (totalBagsPerColor[color] ?? 0) + (v['bags'] as num).toInt();
+      totalQtyPerColor[color] =
+          (totalQtyPerColor[color] ?? 0.0) + (v['qty'] as num).toDouble();
+    });
+
+    // fixed colour order
+    final List<int> colorOrder = [239, 240, 241, 242];
+    final Map<int, String> colorLabels = {
+      239: 'Yellow',
+      240: 'Red',
+      241: 'Blue',
+      242: 'White'
+    };
+
+    return colorOrder.map((colorId) {
+      return {
+        'category': colorLabels[colorId],
+        'bags': totalBagsPerColor[colorId] ?? 0,
+        'quantity': totalQtyPerColor[colorId] ?? 0.0,
+      };
+    }).toList();
+  }
+
 
 
   final Map<String, Color> categoryColors = {

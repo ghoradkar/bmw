@@ -63,7 +63,7 @@ class _ReceptionAfterScanState extends State<ReceptionAfterScan> {
         setState(() {
           for(int i=0;i<data['data'].length;i++){
             rows.add(data['data'][i]);
-            _receivedQtyControllers.add(TextEditingController());
+            _receivedQtyControllers.add(TextEditingController(text: data['data'][i]['pickupTotalQuantityBagCbwtfKg'].toString()));
             value_entered.add(false);
           }
           load = false;
@@ -335,7 +335,7 @@ class _ReceptionAfterScanState extends State<ReceptionAfterScan> {
                                   color: kPrimaryColor,
                                 ),
                               )
-                              : Row(
+                              : SafeArea(child: Row(
                                 mainAxisAlignment:
                                     MainAxisAlignment.spaceEvenly,
                                 children: [
@@ -401,7 +401,7 @@ class _ReceptionAfterScanState extends State<ReceptionAfterScan> {
                                   ),
                                 ],
                               ),
-                        ],
+                          )],
                       ),
             ),
           ),

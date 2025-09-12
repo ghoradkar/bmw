@@ -2,6 +2,7 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
+import 'package:mpcb_bio_waste/CBWTF_Disposal/disposal_scanner.dart';
 import 'package:mpcb_bio_waste/CBWTF_Disposal/waste_received_byvehicle.dart';
 import 'package:mpcb_bio_waste/Global/constant.dart';
 import 'package:mpcb_bio_waste/Global/dataNotFound.dart';
@@ -22,7 +23,12 @@ import '../network/offline.dart';
 class DisposalAfterScan extends StatefulWidget {
   final String barcode;
   final int wasteId;
-  DisposalAfterScan(this.barcode,this.wasteId,{super.key});
+
+
+  final List<dynamic>rows;
+  final List<TextEditingController>receivedQtyControllers;
+  final List<bool>value_entered;
+  DisposalAfterScan(this.barcode,this.wasteId, this.rows, this.receivedQtyControllers, this.value_entered,{super.key, });
   @override
   _DisposalAfterScanState createState() => _DisposalAfterScanState();
 }
@@ -42,37 +48,106 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
     if (widget.barcode == null || widget.barcode.trim().isEmpty || widget.barcode == '0') {
       fetchWasteDetails();
     } else {
-      fetchBarcodeDetails();
+
+      // Initialize rows
+      rows = widget.rows;
+
+      // Create controllers, copy existing values if present
+      _receivedQtyControllers = List.generate(
+        rows.length,
+            (index) {
+          final controller = TextEditingController();
+          final value = widget.receivedQtyControllers.isNotEmpty
+              ? widget.receivedQtyControllers[index].text
+              : null;
+
+          if (value != null && value.isNotEmpty) {
+            controller.text = value;
+          }
+          return controller;
+        },
+      );
+
+      // Initialize value_entered flags
+      value_entered = List.generate(
+        rows.length,
+            (index) {
+          final value = widget.value_entered.isNotEmpty
+              ? widget.value_entered[index]
+              : false;
+          return value;
+        },
+      );
+
+      print(rows);
+      print(widget.barcode);
+     // fetchBarcodeDetails(widget.barcode);
     }
   }
+  @override
+  void didChangeDependencies() {
+    super.didChangeDependencies();
 
+    // After widget is in the tree, safe to access ScaffoldMessenger / context
+    if (rows.isEmpty) {
+      fetchBarcodeDetails(widget.barcode);
+    } else {
+      bool found = false;
+      for (int i = 0; i < rows.length; i++) {
+        if (rows[i]['barcodeNo'] == widget.barcode) {
+          found = true;
+          break;
+        }
+      }
 
-  Future<void> fetchBarcodeDetails() async {
+      if (found) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(content: Text('Barcode Already Scanned')),
+          );
+        });
+        setState(() {
+          load=false;});
+      } else {
+        fetchBarcodeDetails(widget.barcode);
+      }
+    }
+
+  }
+
+  Future<void> fetchBarcodeDetails(barcode) async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('Token') ?? '';
 
       final response = await http.get(
-        Uri.parse('${baseurl}${GET_DATA_FROM_QR}${widget.barcode}'),
+        Uri.parse('${baseurl}${GET_DATA_FROM_QR}${barcode}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
-      print('${baseurl}${GET_BARCODE_DATA}${widget.barcode}');
+      print('${baseurl}${GET_BARCODE_DATA}${barcode}');
       print(response.body);
       print(response.statusCode);
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
         setState(() {
-          rows = data['data'];
-          _receivedQtyControllers = List.generate(
-            rows.length,
-                (_) => TextEditingController(),
-          );
-          value_entered = List.generate(rows.length, (_) => false);
+          for(int i=0;i<data['data'].length;i++){
+            rows.add(data['data'][i]);
+            _receivedQtyControllers.add(TextEditingController(text: data['data'][i]['pickupTotalQuantityBagCbwtfDisposalKg'].toString()));
+            value_entered.add(false);
+          }
           load = false;
         });
+          // rows = data['data'];
+          // _receivedQtyControllers = List.generate(
+          //   rows.length,
+          //       (_) => TextEditingController(text: ),
+          // );
+          // value_entered = List.generate(rows.length, (_) => false);
+          load = false;
+
       } else {
         if (response.statusCode == 401) {
           final authService = AuthService();
@@ -257,6 +332,40 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
                 scTitle: 'View Details',
                 centerTile: false,
                 showLeading: true,
+                showActions: true,
+                actions: [
+                  Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    child: IconButton(
+                      onPressed: () async {
+
+                        final scannedData = await Navigator.pushReplacement(
+                          context,
+                          MaterialPageRoute(
+                              builder: (context) =>  DisposalScanner(rows,_receivedQtyControllers,value_entered)
+                          ),
+                        );
+
+                        if (scannedData != null) {
+                          setState(() {
+                            final alreadyExists = rows.any(
+                                  (item) => item['barcode'] == scannedData['barcode'],
+                            );
+
+                            if (!alreadyExists) {
+                              fetchBarcodeDetails(scannedData);
+                              // rows.add(scannedData);  // if you want to append it
+                            }
+                          });
+                        }
+                      },
+
+
+
+                      icon: const Icon(Icons.document_scanner_outlined),
+                    ),
+                  ),
+                ],
               ),
               Positioned.fill(
                 top: responsiveHeight(110),

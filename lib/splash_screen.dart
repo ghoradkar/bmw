@@ -1,6 +1,9 @@
+import 'dart:convert';
+
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
+import 'CBWTF_Disposal/disposal_overall_colection.dart';
 import 'Global/app_routes.dart';
 import 'Global/images.dart';
 import 'authentication/login_screen.dart';
@@ -22,12 +25,34 @@ class _SplashScreenState extends State<SplashScreen> {
     final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
     final userRole = prefs.getString('userRole');
 
+    final userString = prefs.getString('user');
+    Map<String, dynamic>? user;
+
+    if (userString != null && userString.isNotEmpty) {
+      user = jsonDecode(userString) as Map<String, dynamic>;
+    }
+
+    print('user: $user');
+
+    if (userRole == 'Disposal User') {
+      if (user != null && user['bulkDataSaveFlag'] == 'N') {
+        Navigator.of(context).popAndPushNamed(AppRoutes.waste_received_byvehicle);
+      } else {
+        Navigator.push(
+          context,
+          MaterialPageRoute(
+            builder: (_) => DisposalOverallCollection(),
+          ),
+        );
+      }
+      return;
+    }
+
     // Map roles to routes
     final roleRoutes = {
       'HCF User': AppRoutes.hcf_biowasteScreen,
       'CBWT User': AppRoutes.nearby_hcf,
       'CBWT Reception User': AppRoutes.vehicle_screen,
-      'Disposal User': AppRoutes.waste_received_byvehicle,
       'Vehicle  User': AppRoutes.vehicle_nearby_hcf,
     };
 
@@ -43,6 +68,7 @@ class _SplashScreenState extends State<SplashScreen> {
       });
     }
   }
+
 
   @override
   void initState() {

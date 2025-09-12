@@ -48,6 +48,8 @@ String SAVE_WASTE_DISPOSAL='saveWasteRecivedData-cbwtf-disposal/';
 String GET_DISPOSAL_DATA='get-cbwtf-disposal-data-completed?';
 String VIEW_DATA='get-cbwtf-dispsoal-data-completed-vehicle-newflow';
 String GET_OVERALL_DISPOSAL_DATA='get-cbwtf-dispsoal-data-completed-vehicle-newflow';
+
+
 String SAVE_OVERALL_DISPOSAL_DATA='save-cbwtf-disposal-data-newlflow';
 String GET_DATA_FROM_QR='getBioWastedisposalByQrcode/';
 
