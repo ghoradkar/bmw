@@ -11,7 +11,9 @@ import '../Global/constant.dart';
 import '../Global/images.dart';
 import '../Global/size_config.dart';
 import '../Global/url.dart';
+import '../Localization/app_localization.dart';
 import '../authentication/logout.dart';
+import '../localization/provider.dart';
 import '../network/network_aware.dart';
 import '../network/network_status.dart';
 import '../network/offline.dart';
@@ -47,7 +49,7 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
   }
   bool isSaving = false;
 
-  Future<void> SaveWaste() async {
+  Future<void> SaveWaste(t) async {
     if (isSaving) return; // 🚫 Prevent multiple calls
     isSaving = true;
     setState(() => save = true);
@@ -98,7 +100,7 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(responseData['message'])),
         );
-        showSuccessDialog(context);
+        showSuccessDialog(context,t);
       } else if (response.statusCode == 401) {
         AuthService().logout(context);
       } else {
@@ -174,6 +176,8 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
     return StreamProvider<NetworkStatus>(
         create: (context) =>
         NetworkStatusService().networkStatusController.stream,
@@ -185,7 +189,7 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
                   /// Custom Gradient AppBar
                   mAppBar(
                     onLeadingIconClick: () => Navigator.pop(context),
-                    scTitle: 'Bio Waste Received By Vehicle',
+                    scTitle: t.translate('bio_waste_received_by_vehicle'),
                     centerTile: false,
                     showLeading: true,
                   ),
@@ -215,7 +219,7 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
                           : Column(
                         children: [
                           SizedBox(height: 20),
-                          _buildTable(),
+                          _buildTable(t),
                           Spacer(),
                           save
                               ? Center(
@@ -234,7 +238,7 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
                                     vertical: 5,
                                     horizontal: 15,
                                   ),
-                                  text: 'Save',
+                                  text: t.translate('save'),
                                   onPressed: () {
                                     bool isValid = true;
 
@@ -264,7 +268,7 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
                                       } else {
                                         value_entered[i] = true;
 
-                                        SaveWaste();
+                                        SaveWaste(t);
                                       }
                                     }
 
@@ -292,7 +296,7 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
                                     vertical: 5,
                                     horizontal: 15,
                                   ),
-                                  text: 'Cancel',
+                                  text:t.translate('cancel'),
                                   onPressed: () => Navigator.pop(context),
                                   color: Colors.grey.shade400,
                                 ),
@@ -308,7 +312,7 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
             ), offlineChild: Offline()));
   }
 
-  Widget _buildTable() {
+  Widget _buildTable(t) {
     return Table(
       border: TableBorder.all(
         color: Colors.grey.shade400,
@@ -338,15 +342,16 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
           ),
           children: _tableHeaders([
             "",
-            "Category",
-            "Total Bags",
+            t.translate('category'),
+            t.translate('total_bags'),
 
-            "Total Weight",
+            t.translate('total_weight'),
 
-            'Received Bags',
-            'Received Weight',
+            t.translate('received_bags'),
+            t.translate('received_weight'),
 
-            "Difference in Qty",
+
+    t.translate('difference'),
             "",
           ]),
         ),
@@ -518,7 +523,7 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
     }
   }
 
-  void showSuccessDialog(BuildContext context) {
+  void showSuccessDialog(BuildContext context,t) {
     showDialog(
       context: context,
       barrierDismissible: false, // User must tap button
@@ -537,8 +542,8 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
                 const SizedBox(height: 24),
 
                 // Success Text
-                const Text(
-                  "Bio Waste Data\nadded successfully.",
+                Text(
+                  t.translate('bmw_data_add'),
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
@@ -552,7 +557,7 @@ class _OverallDataCollectionState extends State<OverallDataCollection> {
                       vertical: 5,
                       horizontal: 15,
                     ),
-                    text: 'Ok',
+                    text:  t.translate('ok'),
                     onPressed: () {
                       // Navigator.pop(context);
                       Navigator.pushAndRemoveUntil(

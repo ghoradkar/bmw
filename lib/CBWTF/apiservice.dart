@@ -16,26 +16,26 @@ class ApiService {
 
   static Future<List<Map<String, dynamic>>> buildWastePayloadList({
     required List<dynamic> inputList,
-    required String vehicleNo
+    required Map<String,dynamic> vehicle
 
   }) async {
     final prefs = await SharedPreferences.getInstance();
     final user = prefs.getString('user') ?? '';
     final userid = prefs.getString('UserId') ?? '';
-    print(user);
-
+   // print(user);
+    print(vehicle);
     return inputList.map((item) {
-      final String dateStr = item['wasteQntyDateStr']; // e.g. "2025-08-01"
+      final String dateStr = item['wasteQtyDate']; // e.g. "2025-08-01"
       final dateParts = dateStr.split('-');        // [2025, 08, 01]
-      final formattedDate = '${dateParts[2]}/${dateParts[1]}/${dateParts[0]}'; // "01/08/2025"
+      final formattedDate = '${dateParts[0]}/${dateParts[1]}/${dateParts[2]}'; // "01/08/2025"
 
       return {
         "hcfWasteId": item["hcfWasteId"],
-        "wasteQntyDate": formattedDate,
-        "vehicleUserId": '',
-        "vehicleNo": vehicleNo,
+        "wasteQntyDate":formattedDate,
+        "vehicleUserId": vehicle['userId'],
+        "vehicleNo": vehicle['vehicleNo'],
         "userId": userid,
-        "chassisNo":'',
+        "chassisNo":vehicle['vehicleChassis'],
         "vehicleAssignDate": formattedDate
       };
     }).toList();

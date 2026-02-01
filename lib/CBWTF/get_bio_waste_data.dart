@@ -427,47 +427,47 @@ class _GetBioWasteDataState extends State<GetBioWasteData> {
                       ),
                       text: isEditMode ? 'Edit' : 'Save',
                       onPressed: () async {
-                        final vehicleNumber = vehicle.text.trim();
+                        // final vehicleNumber = vehicle.text.trim();
+                        //
+                        // if (!_formKey.currentState!.validate()) return;
+                        //
+                        // if (selectedHcfs.isEmpty) {
+                        //   ScaffoldMessenger.of(context).showSnackBar(
+                        //     const SnackBar(
+                        //       content: Text("Please select at least one HCF"),
+                        //       backgroundColor: Colors.red,
+                        //     ),
+                        //   );
+                        //   return;
+                        // }
 
-                        if (!_formKey.currentState!.validate()) return;
+                        // var body = await ApiService.buildWastePayloadList(
+                        //   inputList: selectedHcfs,
+                        //   vehicleNo: vehicleNumber,
+                        // );
 
-                        if (selectedHcfs.isEmpty) {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(
-                              content: Text("Please select at least one HCF"),
-                              backgroundColor: Colors.red,
-                            ),
-                          );
-                          return;
-                        }
-
-                        var body = await ApiService.buildWastePayloadList(
-                          inputList: selectedHcfs,
-                          vehicleNo: vehicleNumber,
-                        );
-
-                        if (body.isNotEmpty) {
-                          var value = await ApiService.AssignVehicle(
-                            context,
-                            body,
-                          );
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            SnackBar(content: Text('${value['message']}')),
-                          );
-                          if (value['status'] == 'Succes') {
-                            setState(() {
-                              isEditMode = false;
-                              fetchHCFPolygon();
-                              showSuccess(this.context);
-                            });
-                            resetForm();
-                          }
-                        } else {
-                          ScaffoldMessenger.of(context).showSnackBar(
-                            const SnackBar(content: Text('Failed')),
-                          );
-                        }
-                      },
+                      //   if (body.isNotEmpty) {
+                      //     var value = await ApiService.AssignVehicle(
+                      //       context,
+                      //       body,
+                      //     );
+                      //     ScaffoldMessenger.of(context).showSnackBar(
+                      //       SnackBar(content: Text('${value['message']}')),
+                      //     );
+                      //     if (value['status'] == 'Succes') {
+                      //       setState(() {
+                      //         isEditMode = false;
+                      //         fetchHCFPolygon();
+                      //         showSuccess(this.context);
+                      //       });
+                      //       resetForm();
+                      //     }
+                      //   } else {
+                      //     ScaffoldMessenger.of(context).showSnackBar(
+                      //       const SnackBar(content: Text('Failed')),
+                      //     );
+                      //   }
+                       },
                       color: Colors.deepOrange,
                     ),
                   ),

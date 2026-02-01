@@ -51,22 +51,27 @@ class AppTheme {
         ),
       ));
 
+
   static ThemeData theme() {
     return ThemeData(
       scaffoldBackgroundColor: kWhiteColor,
       colorScheme: _shrineColorScheme,
-      fontFamily: Nunito,
+      fontFamily: 'Nunito',
       appBarTheme: appBarTheme(),
       textTheme: textTheme(),
-      // inputDecorationTheme: inputDecorationTheme(),
       visualDensity: VisualDensity.adaptivePlatformDensity,
-      tabBarTheme: const TabBarTheme(
-          indicator: UnderlineTabIndicator(
-              borderSide: BorderSide(
-                  color: Colors.white) // color for indicator (underline)
-          )),
+      tabBarTheme: const TabBarThemeData(
+        indicator: UnderlineTabIndicator(
+          borderSide: BorderSide(
+            color: Colors.white,
+            width: 2,
+          ),
+        ),
+      ),
     );
   }
+
+
 
   static final ColorScheme _shrineColorScheme = ColorScheme(
     primary: kPrimaryColor,

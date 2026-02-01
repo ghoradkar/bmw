@@ -15,6 +15,8 @@ import '../Global/app_button.dart';
 import '../Global/constant.dart';
 import '../Global/size_config.dart';
 import '../Global/url.dart';
+import '../Localization/app_localization.dart';
+import '../localization/provider.dart';
 import '../network/network_aware.dart';
 import '../network/network_status.dart';
 import 'bio_waste_summary.dart';
@@ -104,7 +106,7 @@ class _ViewDetailsState extends State<ViewDetails> {
       isLoadingColor = false;
     });
   }
-  Future<void> fetchBioWasteSummary() async {
+  Future<void> fetchBioWasteSummary(t) async {
     setState(() => isLoading = true);
 
     try {
@@ -154,6 +156,11 @@ class _ViewDetailsState extends State<ViewDetails> {
 
         if (jsonResponse['status'] == 'Success') {
           final List<dynamic> data = jsonResponse['data'];
+          if (data.isEmpty){
+            showSuccessDialog(context, t);
+
+          }
+          else{
 
           summaryData= buildSummaryData(data);
 
@@ -165,7 +172,7 @@ class _ViewDetailsState extends State<ViewDetails> {
             MaterialPageRoute(
               builder: (context) => BioWasteTableScreen(summaryData),
             ),
-          );
+          );}
           // final Map<String, Map<String, double>> grouped = {};
           //
           // for (final item in data) {
@@ -372,6 +379,8 @@ class _ViewDetailsState extends State<ViewDetails> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
     return StreamProvider<NetworkStatus>(
         create: (context) =>
         NetworkStatusService().networkStatusController.stream,
@@ -385,7 +394,7 @@ class _ViewDetailsState extends State<ViewDetails> {
               /// Custom Gradient AppBar
               mAppBar(
                   onLeadingIconClick: () => Navigator.pop(context),
-                  scTitle: 'HCF Bio Waste Data',
+                  scTitle:t.translate('hcf_data'),
                   centerTile: false,
                   showLeading: true,
 
@@ -436,7 +445,7 @@ class _ViewDetailsState extends State<ViewDetails> {
                                             style: TextStyle(fontSize: 12),
 
                                             decoration: InputDecoration(
-                                              labelText: "From Date",
+                                              labelText: t.translate('from_date'),
                                               labelStyle: TextStyle(fontSize: 12),
 
                                               prefixIcon: Icon(Icons.calendar_month,color: kPrimaryColor,),
@@ -459,7 +468,7 @@ class _ViewDetailsState extends State<ViewDetails> {
                                             onTap: _pickDateRange,
 
                                             decoration: InputDecoration(
-                                              labelText: "To Date",
+                                              labelText:t.translate('to_date'),
                                               labelStyle: TextStyle(fontSize:12),
                                               prefixIcon: Icon(Icons.calendar_month,color: kPrimaryColor,),
                                               enabledBorder: OutlineInputBorder(
@@ -490,7 +499,7 @@ class _ViewDetailsState extends State<ViewDetails> {
                                               vertical: 5,
                                               horizontal: 15,
                                             ),
-                                            text: 'Reset',
+                                            text:t.translate('reset'),
                                             onPressed: (){
                                               setState(() {
                                                 toDateController.clear();
@@ -509,14 +518,14 @@ class _ViewDetailsState extends State<ViewDetails> {
                                               vertical: 5,
                                               horizontal: 15,
                                             ),
-                                            text: 'Search',
+                                            text:t.translate('search'),
                                             onPressed: () {
                                               setState(() {
                                                 fromDateController.text.isEmpty ||toDateController.text.isEmpty?
                                                 ScaffoldMessenger.of(context).showSnackBar(
                                                   SnackBar(content: Text('Please Select Dates'), backgroundColor: Colors.red),
                                                 )  :
-                                                fetchBioWasteSummary();
+                                                fetchBioWasteSummary(t);
 
                                                 // showSuccessDialog(context);
 
@@ -540,4 +549,52 @@ class _ViewDetailsState extends State<ViewDetails> {
                     ),
                   ))])), offlineChild: Offline()));
   }
+  void showSuccessDialog(BuildContext context,t) {
+    showDialog(
+      context: context,
+      barrierDismissible: false, // User must tap button
+      builder: (BuildContext context) {
+        return Dialog(
+          shape: RoundedRectangleBorder(
+            borderRadius: BorderRadius.circular(20),
+          ),
+          child: Padding(
+            padding: const EdgeInsets.all(24.0),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              children: [
+                // Success Tick Icon
+
+                Text(
+                  t.translate('data_not_found'),
+                  textAlign: TextAlign.center,
+                  style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
+                ),
+                const SizedBox(height: 24),
+
+                // OK Button
+                SizedBox(
+                  width: responsiveWidth(180),
+                  child: AppButton(
+                    padding: const EdgeInsets.symmetric(
+                      vertical: 5,
+                      horizontal: 15,
+                    ),
+                    text: t.translate('ok'),
+                    onPressed: () {
+                      Navigator.pop(context);
+                      fromDateController.clear();
+                      toDateController.clear();
+                    },
+                    color: Colors.deepOrange,
+                  ),
+                ),
+              ],
+            ),
+          ),
+        );
+      },
+    );
+  }
 }
+

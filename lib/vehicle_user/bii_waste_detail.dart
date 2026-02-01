@@ -10,7 +10,9 @@ import '../Global/app_routes.dart';
 import '../Global/constant.dart';
 import '../Global/size_config.dart';
 import '../Global/url.dart';
+import '../Localization/app_localization.dart';
 import '../authentication/logout.dart';
+import '../localization/provider.dart';
 import '../network/network_aware.dart';
 import '../network/network_status.dart';
 import '../network/offline.dart';
@@ -36,6 +38,8 @@ class _BioWasteDetailScreenState extends State<BioWasteDetailScreen> {
   @override
   Widget build(BuildContext context) {
     SizeConfig().init(context);
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
 
     return StreamProvider<NetworkStatus>(
       create: (context) =>
@@ -49,7 +53,7 @@ class _BioWasteDetailScreenState extends State<BioWasteDetailScreen> {
           /// Custom Gradient AppBar
           mAppBar(
             onLeadingIconClick: () => Navigator.pop(context),
-            scTitle: 'Add Bio Waste Data Details',
+            scTitle: t.translate('scan'),
             centerTile: false,
             showLeading: true,
             showActions: true,
@@ -117,8 +121,8 @@ class _BioWasteDetailScreenState extends State<BioWasteDetailScreen> {
                   Text.rich(
                     TextSpan(
                       children: [
-                        const TextSpan(
-                          text: 'Name of CBWTF : ',
+                        TextSpan(
+                          text: '${t.translate('name_cbwtf')} : ',
                           style: TextStyle(fontWeight: FontWeight.bold),
                         ),
                         TextSpan(
@@ -141,8 +145,8 @@ class _BioWasteDetailScreenState extends State<BioWasteDetailScreen> {
                         child: Text.rich(
                           TextSpan(
                             children: [
-                              const TextSpan(
-                                text: 'Date : ',
+                              TextSpan(
+                                text: '${t.translate('date')} : ',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                               TextSpan(
@@ -159,8 +163,8 @@ class _BioWasteDetailScreenState extends State<BioWasteDetailScreen> {
                         child: Text.rich(
                           TextSpan(
                             children: [
-                              const TextSpan(
-                                text: 'HCF Code : ',
+                               TextSpan(
+                                text: '${t.translate('hcf_code')} : ',
                                 style: TextStyle(fontWeight: FontWeight.bold),
                               ),
                               TextSpan(

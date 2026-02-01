@@ -15,7 +15,9 @@ import '../Global/app_routes.dart';
 import '../Global/images.dart';
 import '../Global/size_config.dart';
 import '../Global/url.dart';
+import '../Localization/app_localization.dart';
 import '../authentication/logout.dart';
+import '../localization/provider.dart';
 import '../network/network_aware.dart';
 import '../network/network_status.dart';
 import '../network/offline.dart';
@@ -39,95 +41,133 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
   bool save = false;
   List<TextEditingController> _receivedQtyControllers = [];
   List<bool> value_entered = [];
+  // @override
+  // void initState() {
+  //   super.initState();
+  //   print(widget.barcode);
+  //   print(widget.wasteId);
+  //
+  //   if (widget.barcode == null || widget.barcode.trim().isEmpty || widget.barcode == '0') {
+  //     fetchWasteDetails();
+  //   } else {
+  //
+  //     // Initialize rows
+  //     rows = widget.rows;
+  //
+  //     // Create controllers, copy existing values if present
+  //     _receivedQtyControllers = List.generate(
+  //       rows.length,
+  //           (index) {
+  //         final controller = TextEditingController();
+  //         final value = widget.receivedQtyControllers.isNotEmpty
+  //             ? widget.receivedQtyControllers[index].text
+  //             : null;
+  //
+  //         if (value != null && value.isNotEmpty) {
+  //           controller.text = value;
+  //         }
+  //         return controller;
+  //       },
+  //     );
+  //
+  //     // Initialize value_entered flags
+  //     value_entered = List.generate(
+  //       rows.length,
+  //           (index) {
+  //         final value = widget.value_entered.isNotEmpty
+  //             ? widget.value_entered[index]
+  //             : false;
+  //         return value;
+  //       },
+  //     );
+  //
+  //     print(rows);
+  //     print(widget.barcode);
+  //    // fetchBarcodeDetails(widget.barcode);
+  //   }
+  // }
   @override
   void initState() {
     super.initState();
-    print(widget.barcode);
-    print(widget.wasteId);
 
-    if (widget.barcode == null || widget.barcode.trim().isEmpty || widget.barcode == '0') {
+    rows = widget.rows;
+    _receivedQtyControllers = widget.receivedQtyControllers;
+    value_entered = widget.value_entered;
+
+    if (widget.barcode.trim().isNotEmpty && widget.barcode != '0') {
+      _handleScannedBarcode(widget.barcode);
+    } else {
       fetchWasteDetails();
-    } else {
-
-      // Initialize rows
-      rows = widget.rows;
-
-      // Create controllers, copy existing values if present
-      _receivedQtyControllers = List.generate(
-        rows.length,
-            (index) {
-          final controller = TextEditingController();
-          final value = widget.receivedQtyControllers.isNotEmpty
-              ? widget.receivedQtyControllers[index].text
-              : null;
-
-          if (value != null && value.isNotEmpty) {
-            controller.text = value;
-          }
-          return controller;
-        },
-      );
-
-      // Initialize value_entered flags
-      value_entered = List.generate(
-        rows.length,
-            (index) {
-          final value = widget.value_entered.isNotEmpty
-              ? widget.value_entered[index]
-              : false;
-          return value;
-        },
-      );
-
-      print(rows);
-      print(widget.barcode);
-     // fetchBarcodeDetails(widget.barcode);
     }
   }
-  @override
-  void didChangeDependencies() {
-    super.didChangeDependencies();
-
-    // After widget is in the tree, safe to access ScaffoldMessenger / context
-    if (rows.isEmpty) {
-      fetchBarcodeDetails(widget.barcode);
-    } else {
-      bool found = false;
-      for (int i = 0; i < rows.length; i++) {
-        if (rows[i]['barcodeNo'] == widget.barcode) {
-          found = true;
-          break;
-        }
-      }
-
-      if (found) {
-        WidgetsBinding.instance.addPostFrameCallback((_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(content: Text('Barcode Already Scanned')),
-          );
-        });
-        setState(() {
-          load=false;});
-      } else {
-        fetchBarcodeDetails(widget.barcode);
-      }
+  void _handleScannedBarcode(String barcode) {
+    if (_isDuplicateBarcode(barcode)) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Barcode already scanned')),
+        );
+      });
+      setState(() => load = false);
+      return;
     }
 
+    fetchBarcodeDetails(barcode);
+  }
+  bool _isDuplicateBarcode(String barcode) {
+    return rows.any((item) => item['barcodeNo'] == barcode);
   }
 
+  // @override
+  // void didChangeDependencies() {
+  //   super.didChangeDependencies();
+  //
+  //   // After widget is in the tree, safe to access ScaffoldMessenger / context
+  //   if (rows.isEmpty) {
+  //     fetchBarcodeDetails(widget.barcode);
+  //   } else {
+  //     bool found = false;
+  //     for (int i = 0; i < rows.length; i++) {
+  //       if (rows[i]['barcodeNo'] == widget.barcode) {
+  //         found = true;
+  //         break;
+  //       }
+  //     }
+  //
+  //     if (found) {
+  //       WidgetsBinding.instance.addPostFrameCallback((_) {
+  //         ScaffoldMessenger.of(context).showSnackBar(
+  //           const SnackBar(content: Text('Barcode Already Scanned')),
+  //         );
+  //       });
+  //       setState(() {
+  //         load=false;});
+  //     } else {
+  //       fetchBarcodeDetails(widget.barcode);
+  //     }
+  //   }
+  //
+  // }
+  String extractBarcode(String data) {
+    final regex = RegExp(r'Barcode No\s*:\s*(.+)');
+    final match = regex.firstMatch(data);
+    return match != null ? match.group(1)!.trim() : data;
+  }
   Future<void> fetchBarcodeDetails(barcode) async {
     try {
+      String extractedBarcode = extractBarcode(barcode);
+      if (_isDuplicateBarcode(extractedBarcode)) return;
+
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('Token') ?? '';
 
       final response = await http.get(
-        Uri.parse('${baseurl}${GET_DATA_FROM_QR}${barcode}'),
+        Uri.parse('${baseurl}${GET_DATA_FROM_QR}${extractedBarcode}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
-      print('${baseurl}${GET_BARCODE_DATA}${barcode}');
+      print('${baseurl}${GET_BARCODE_DATA}${extractedBarcode}');
       print(response.body);
       print(response.statusCode);
       if (response.statusCode == 200) {
@@ -197,7 +237,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
       });
     }
   }
-  Future<void> SaveWaste() async {
+  Future<void> SaveWaste(t) async {
     setState(() => save = true);
 
     try {
@@ -286,7 +326,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
         ScaffoldMessenger.of(context).showSnackBar(
           SnackBar(content: Text(responseData['message'])),
         );
-        showSuccessDialog(context);
+        showSuccessDialog(context,t);
       } else if (response.statusCode == 401) {
         AuthService().logout(context);
       } else {
@@ -319,6 +359,8 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
     return StreamProvider<NetworkStatus>(
       create: (context) =>
       NetworkStatusService().networkStatusController.stream,
@@ -329,7 +371,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
             children: [
               mAppBar(
                 onLeadingIconClick: () => Navigator.pop(context),
-                scTitle: 'View Details',
+                scTitle:  t.translate('bmw_details'),
                 centerTile: false,
                 showLeading: true,
                 showActions: true,
@@ -338,27 +380,44 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     child: IconButton(
                       onPressed: () async {
-
-                        final scannedData = await Navigator.pushReplacement(
+                        final scannedBarcode = await Navigator.push(
                           context,
                           MaterialPageRoute(
-                              builder: (context) =>  DisposalScanner(rows,_receivedQtyControllers,value_entered)
+                            builder: (_) =>
+                                DisposalScanner(
+                                  rows,
+                                  _receivedQtyControllers,
+                                  value_entered,
+                                ),
                           ),
                         );
 
-                        if (scannedData != null) {
-                          setState(() {
-                            final alreadyExists = rows.any(
-                                  (item) => item['barcode'] == scannedData['barcode'],
-                            );
-
-                            if (!alreadyExists) {
-                              fetchBarcodeDetails(scannedData);
-                              // rows.add(scannedData);  // if you want to append it
-                            }
-                          });
+                        if (scannedBarcode != null) {
+                          _handleScannedBarcode(scannedBarcode);
                         }
                       },
+
+                      //   final scannedData = await Navigator.pushReplacement(
+                      //     context,
+                      //     MaterialPageRoute(
+                      //         builder: (context) =>  DisposalScanner(rows,_receivedQtyControllers,value_entered)
+                      //     ),
+                      //   );
+                      //   String extractedBarcode = extractBarcode(scannedData);
+                      //
+                      //   if (extractedBarcode != null) {
+                      //     setState(() {
+                      //       final alreadyExists = rows.any(
+                      //             (item) => item['barcode'] == extractedBarcode,
+                      //       );
+                      //
+                      //       if (!alreadyExists) {
+                      //         fetchBarcodeDetails(extractedBarcode);
+                      //         // rows.add(scannedData);  // if you want to append it
+                      //       }
+                      //     });
+                      //   }
+                      // },
 
 
 
@@ -389,7 +448,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
                     child: Column(
                       children: [
                         const SizedBox(height: 20),
-                        _buildTable(),
+                        _buildTable(t),
                         const SizedBox(height: 40),
                         save
                             ? Center(
@@ -408,7 +467,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
                                   vertical: 5,
                                   horizontal: 15,
                                 ),
-                                text: 'Save',
+                                text:  t.translate('save'),
                                 onPressed: () {
                                   bool isValid = true;
 
@@ -435,7 +494,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
                                   }
 
 // ✅ All fields are filled — now hit API
-                                  SaveWaste();
+                                  SaveWaste(t);
 
                                 },
                                 color: Colors.deepOrange,
@@ -448,7 +507,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
                                   vertical: 5,
                                   horizontal: 15,
                                 ),
-                                text: 'Cancel',
+                                text:  t.translate('cancel'),
                                 onPressed: () =>
                                     Navigator.pop(context),
                                 color: Colors.grey.shade400,
@@ -471,7 +530,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
   }
 
 
-  Widget _buildTable() {
+  Widget _buildTable(t) {
     return Table(
       border: TableBorder.all(
         color: Colors.grey.shade400,
@@ -482,10 +541,10 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
         1: FlexColumnWidth(1.6),
         2: FlexColumnWidth(1),
         3: FlexColumnWidth(1),
-        4: FlexColumnWidth(1),
-        5: FlexColumnWidth(1.5),
+        4: FlexColumnWidth(1.5),
+        5: FlexColumnWidth(1),
         6: FlexColumnWidth(1),
-        7: FlexColumnWidth(1),
+        //7: FlexColumnWidth(1),
       },
       children: [
         TableRow(
@@ -500,12 +559,12 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
           ),
           children: _tableHeaders([
             "",
-            "Barcode",
-            "Qty by HCF",
-            'Qty by Vehicle',
-            'Received By CBWTF',
-            "Disposed By CBWTF",
-            "Difference in Qty",
+    t.translate('barcode'),
+            t.translate('weight_by_hcf'),
+            t.translate('weight_by_vehicle'),
+            //'Received By CBWTF',
+            t.translate('disposed_by_cbwtf'),
+            t.translate('difference'),
             "",
           ]),
         ),
@@ -531,7 +590,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
         _tableCell(barcode),
         _tableCell("$pickupQty kg"),
         _tableCell("$byvehicle kg"),
-        _tableCell("$bycbwtf kg"),
+       // _tableCell("$bycbwtf kg"),
         Padding(
           padding: const EdgeInsets.only(top: 10,bottom: 10,left: 5,right: 5),
           child: TextFormField(
@@ -643,7 +702,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
     }
   }
 
-  void showSuccessDialog(BuildContext context) {
+  void showSuccessDialog(BuildContext context,t) {
     showDialog(
       context: context,
       barrierDismissible: false,
@@ -659,8 +718,8 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
               children: [
                 Image.asset(success),
                 const SizedBox(height: 24),
-                const Text(
-                  "Bio Waste Data\nadded successfully.",
+                 Text(
+                   t.translate('bmw_disposed'),
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
@@ -672,7 +731,7 @@ class _DisposalAfterScanState extends State<DisposalAfterScan> {
                       vertical: 5,
                       horizontal: 15,
                     ),
-                    text: 'Ok',
+                    text:  t.translate('ok'),
                     onPressed: () {
         Navigator.pushAndRemoveUntil(
         context,

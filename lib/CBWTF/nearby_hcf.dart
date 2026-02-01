@@ -3,14 +3,19 @@ import 'dart:io';
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:intl/intl.dart';
+import 'package:mpcb_bio_waste/CBWTF/apiservice.dart';
 import 'package:mpcb_bio_waste/CBWTF/get_bio_waste_data.dart';
 import 'package:mpcb_bio_waste/Global/url.dart';
+import 'package:mpcb_bio_waste/Localization/app_localization.dart';
 import 'package:mpcb_bio_waste/authentication/login_screen.dart';
 import 'package:provider/provider.dart';
 
 import '../Global/AppDrawer.dart';
 import '../Global/app_bar.dart';
- import '../Global/app_routes.dart';
+ import '../Global/app_dialog.dart';
+import '../Global/app_dropdown.dart';
+import '../Global/app_routes.dart';
 import '../Global/constant.dart';
 import '../Global/size_config.dart';
 
@@ -22,6 +27,7 @@ import 'package:http/http.dart' as http;
 import 'package:geolocator/geolocator.dart';
 
 import '../authentication/logout.dart';
+import '../localization/provider.dart';
 import '../network/network_aware.dart';
 import '../network/network_status.dart';
 import '../network/offline.dart';
@@ -46,257 +52,332 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
   bool _isDrawing = false;// for draggable polygon markers
   String? osVersion;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
+  DateTime? rangeStartDate;
+  DateTime? rangeEndDate;
+  bool showCalendar = false;
+  MapType _currentMapType = MapType.normal;
+  bool _isSatellite = false; // Track current map type
+  List <Map<String,dynamic>>vehicleList=[];
+  Map<String,dynamic>? selectedVehicle;
+  bool _isLoading=false;
+  String? totalhcf='0.0';
+  // String? totalweight='0.0';
+   String? totalBags='0.0';
+  Set<int> _selectedHcfIds = {}; // selected HCFs
+  List<Map<String, dynamic>> _selectedHcfs = [];
+  Map<int, Map<String, dynamic>> _groupedHcfMap = {};
+
+
+  double totalWeight = 0;
+  double totalBagsCount = 0;
+
+
+
+  Future<DateTime?> _pickDate(BuildContext context) {
+    return showDatePicker(
+      context: context,
+      initialDate: DateTime.now(),
+      firstDate: DateTime(2020),
+      lastDate: DateTime.now(),
+    );
+  }
+  Future<void> fetchVehicle() async {
+    setState(() => _isLoading = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('Token') ?? '';
+      final response = await http.get(
+        Uri.parse('${baseurl}${GET_VEHICLE_USERS}'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+      );
+
+      if (response.statusCode == 200) {
+        final res = jsonDecode(response.body);
+        vehicleList = List<Map<String, dynamic>>.from(res['data'] ?? []);
+      }
+    } catch (_) {
+      _showError("Failed to fetch vehicles");
+    }
+
+    setState(() => _isLoading = false);
+  }
+
+  Future<void> fetchDashboardCount(String startDate, String endDate) async {
+    setState(() => _isLoading = true);
+
+    try {
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('Token') ?? '';
+      final userId = prefs.getString('UserId');
+
+      final body = {
+        "scheduleFromDate": startDate,
+        "scheduleToDate": endDate,
+        "userId": userId
+      };
+
+      final response = await http.post(
+        Uri.parse('${baseurl}${CBWTF_DASHBOARD_COUNT}'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
+        body: jsonEncode(body),
+      );
+
+      if (response.statusCode == 200) {
+        final res = jsonDecode(response.body);
+        // Process dashboard count data if needed
+      }
+    } catch (_) {
+      _showError("Failed to fetch dashboard count");
+    }
+
+    setState(() => _isLoading = false);
+  }
 
   @override
   void initState() {
     super.initState();
     _getCurrentLocation();
+    fetchVehicle();
+    final today = DateTime.now().toString().substring(0, 10);
+    fetchDashboardCount(today, today);
   }
 
   Future<void> _getCurrentLocation() async {
     LocationPermission permission;
 
-    // Check service is enabled
-    bool serviceEnabled = await Geolocator.isLocationServiceEnabled();
-    if (!serviceEnabled) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Location services are disabled.')),
-      );
+    if (!await Geolocator.isLocationServiceEnabled()) {
+      _showError('Location services are disabled.');
       return;
     }
 
-    // Check permission
     permission = await Geolocator.checkPermission();
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Location permission denied')),
-        );
+        _showError('Location permission denied');
         return;
       }
     }
 
-    // Handle permanent denial
     if (permission == LocationPermission.deniedForever) {
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
           content: const Text('Location permission permanently denied.'),
           action: SnackBarAction(
             label: 'Settings',
-            onPressed: () {
-              Geolocator.openAppSettings(); // Opens system app settings
-            },
+            onPressed: Geolocator.openAppSettings,
           ),
         ),
       );
       return;
     }
 
-    // Fetch location
     try {
       Position position = await Geolocator.getCurrentPosition(
           desiredAccuracy: LocationAccuracy.high);
-
       setState(() {
         _center = LatLng(position.latitude, position.longitude);
-        isLoading=false;
+        isLoading = false;
       });
 
-      fetchNearbyHCFs(); // Call your API or logic
+      DateTime now = DateTime.now();
+      DateTime fromDate = DateTime(now.year, now.month - 1, now.day);
+
+      fetchNearbyHCFs(fromDate.toString().substring(0, 10),
+          now.toString().substring(0, 10));
     } catch (e) {
-      print("Error: $e");
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Failed to get location')),
-      );
+      _showError('Failed to get location');
     }
   }
 
-  Future<void> fetchNearbyHCFs() async {
+  Future<void> fetchNearbyHCFs(String startDate, String endDate) async {
     try {
+      setState(() {
+        isLoading=true;
+      });
       final prefs = await SharedPreferences.getInstance();
-      final token = await prefs.getString('Token') ?? '';
-      var userId = await prefs.getString('UserId');
+      final token = prefs.getString('Token') ?? '';
+      final userId = prefs.getString('UserId');
 
+      final body = {
+        "scheduleFromDate": startDate,
+        "scheduleToDate": endDate,
+        "userId": userId
+      };
 
       final response = await http.post(
-        Uri.parse('${baseurl}${CBWTF_MAP}$userId'),
+        Uri.parse('${baseurl}${CBWTF_MAP}'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-       // body: body,
+        body: jsonEncode(body),
       );
-      print('${baseurl}${CBWTF_MAP}$userId');
-
-      print(response.body);
-
-      if (response.statusCode == 201) {
-        final data = jsonDecode(response.body);
-        hcfList = data['data'];
-        print(hcfList);
-        _generateMarkers();
-        print(hcfList.length);
-      } else {
-        print('API error: ${response.statusCode}');
-        if (response.statusCode==401){
-          final authService = AuthService();
-          authService.logout(context);
-
-        }
-      }
-    } catch (e) {
-      print('Error fetching HCFs: $e');
-    }
-  }
-
-  Future<void> fetchHCFPolygon(list) async {
-    print('list');
-    print(list);
-    final hcfIds = list
-        .map((e) => e['hcfId'].toString())
-        .toSet() // remove duplicates
-        .join(',');
-    try {
-      final prefs = await SharedPreferences.getInstance();
-      final token = await prefs.getString('Token') ?? '';
-      var userId = await prefs.getString('UserId');
-
-
-      final response = await http.get(
-        Uri.parse('${baseurl}${CBWTF_MAP_MULTIPLE_HCF}$hcfIds'),
-        headers: {
-          'Authorization': 'Bearer $token',
-          'Content-Type': 'application/json',
-        },
-        // body: body,
-      );
-      print('${baseurl}${CBWTF_MAP_MULTIPLE_HCF}$hcfIds');
-
-      print(response.body);
+      print(body);
 
       if (response.statusCode == 200) {
         final data = jsonDecode(response.body);
-       List filteredList = data['data'];
-        Navigator.push(
-          context,
-          MaterialPageRoute(
-            builder: (_) => GetBioWasteData(filteredList),
-          ),
-        );
-      } else {
-        print('API error: ${response.statusCode}');
-        if (response.statusCode==401){
-          final authService = AuthService();
-          authService.logout(context);
-
-        }
+        print(data);
+        hcfList = data['data'];
+        _generateMarkers();
+        _prepareGroupedHcfData();
+        setState(() {
+          isLoading=false;
+        });
+      } else if (response.statusCode == 401) {
+        AuthService().logout(context);
+        setState(() {
+          isLoading=false;
+        });
       }
     } catch (e) {
+      setState(() {
+        isLoading=false;
+      });
       print('Error fetching HCFs: $e');
     }
   }
 
   void _generateMarkers() {
     Set<Marker> tempMarkers = {};
-    List<LatLng> latLngs = [];
-
 
     for (var hcf in hcfList) {
-      final lat = double.tryParse(hcf['geoTagLatitude'].toString());
-      final lng = double.tryParse(hcf['geoTagLongitude'].toString());
-      final name = hcf['nameOfHcf'];
-      final hcfCode = hcf['hcfCode'];
+      final lat = double.tryParse(hcf['latitude'].toString());
+      final lng = double.tryParse(hcf['logitude'].toString());
+      final hcfId = hcf['hcfId'];
 
       if (lat != null && lng != null) {
-        final position = LatLng(lat, lng);
-        latLngs.add(position);
+        final isSelected = _selectedHcfIds.contains(hcfId);
 
         tempMarkers.add(
           Marker(
-            markerId: MarkerId(hcfCode),
-            position: position,
-            infoWindow: InfoWindow(title: name),
-            // onTap: () {
-            //   Navigator.of(context).pushNamed(AppRoutes.get_bio_waste );
-            // },
+            markerId: MarkerId(hcfId.toString()),
+            position: LatLng(lat, lng),
+            icon: BitmapDescriptor.defaultMarkerWithHue(
+              isSelected ? BitmapDescriptor.hueGreen : BitmapDescriptor.hueRed,
+            ),
+            onTap: () => _onMarkerTap(hcf),
+            infoWindow: InfoWindow(title: hcf['hcfName']),
           ),
         );
-        _allMarkers = tempMarkers; // Store original
-        _markers = tempMarkers;
       }
     }
 
     setState(() {
       _markers = tempMarkers;
-      _circles = {
-        Circle(
-          circleId: CircleId('range'),
-          center: _center!,
-          radius: _radiusInKm * 1000,
-          fillColor: Colors.purple.withOpacity(0.2),
-          strokeColor: Colors.purple,
-          strokeWidth: 2,
-        ),
-      };
+      _allMarkers = tempMarkers;
     });
+  }
 
-    if (latLngs.isNotEmpty) {
-      final bounds = _createBounds(latLngs);
-      _mapController.animateCamera(CameraUpdate.newLatLngBounds(bounds, 50));
+  void _prepareGroupedHcfData() {
+    _groupedHcfMap.clear();
+
+    for (var hcf in hcfList) {
+      final int hcfId = hcf['hcfId'];
+      if (_groupedHcfMap.containsKey(hcfId)) {
+        _groupedHcfMap[hcfId]!['totalWaste'] += (hcf['totalWaste'] ?? 0).toDouble();
+        _groupedHcfMap[hcfId]!['totalBag'] += (hcf['totalBag'] ?? 0).toInt();
+      } else {
+        _groupedHcfMap[hcfId] = {
+          ...hcf,
+          'totalWaste': (hcf['totalWaste'] ?? 0).toDouble(),
+          'totalBag': (hcf['totalBag'] ?? 0).toInt(),
+        };
+      }
     }
   }
-  bool _isPointInsidePolygon(LatLng point, List<LatLng> polygon) {
-    int intersectCount = 0;
 
-    for (int j = 0; j < polygon.length - 1; j++) {
-      LatLng a = polygon[j];
-      LatLng b = polygon[j + 1];
+  void _onMarkerTap(Map<String, dynamic> hcf) {
+    final hcfId = hcf['hcfId'];
 
-      if ((a.latitude > point.latitude) != (b.latitude > point.latitude)) {
-        double slope = (b.longitude - a.longitude) / (b.latitude - a.latitude);
-        double atX = slope * (point.latitude - a.latitude) + a.longitude;
+    setState(() {
+      if (_selectedHcfIds.contains(hcfId)) {
+        _selectedHcfIds.remove(hcfId);
+        _selectedHcfs.removeWhere((e) => e['hcfId'] == hcfId);
+      } else {
+        _selectedHcfIds.add(hcfId);
+        _selectedHcfs.add(hcf);
+      }
+      _calculateTotals();
+      _generateMarkers();
+    });
+  }
 
-        if (point.longitude < atX) {
-          intersectCount++;
-        }
+  void _calculateTotals() {
+    double weightSum = 0;
+    double bagSum = 0;
+
+    for (var hcfId in _selectedHcfIds) {
+      final hcf = _groupedHcfMap[hcfId];
+      if (hcf != null) {
+        weightSum += hcf['totalWaste'];
+        bagSum += hcf['totalBag'];
       }
     }
 
+    setState(() {
+      totalWeight = weightSum;
+      totalBagsCount = bagSum;
+      totalhcf = _selectedHcfIds.length.toString();
+      totalBags = totalBagsCount.toString();
+    });
+  }
+
+  bool _isPointInsidePolygon(LatLng point, List<LatLng> polygon) {
+    int intersectCount = 0;
+    for (int i = 0; i < polygon.length - 1; i++) {
+      final LatLng a = polygon[i];
+      final LatLng b = polygon[i + 1];
+
+      if (((a.latitude > point.latitude) != (b.latitude > point.latitude)) &&
+          (point.longitude < (b.longitude - a.longitude) *
+              (point.latitude - a.latitude) /
+              (b.latitude - a.latitude) +
+              a.longitude)) {
+        intersectCount++;
+      }
+    }
     return (intersectCount % 2) == 1;
   }
 
-  LatLngBounds _createBounds(List<LatLng> positions) {
-    double x0 = positions.first.latitude;
-    double x1 = positions.first.latitude;
-    double y0 = positions.first.longitude;
-    double y1 = positions.first.longitude;
+  void _selectHcfsInsidePolygon(List<LatLng> polygonPoints) {
+    _selectedHcfIds.clear();
+    _selectedHcfs.clear();
 
-    for (var latLng in positions) {
-      x0 = x0 < latLng.latitude ? x0 : latLng.latitude;
-      x1 = x1 > latLng.latitude ? x1 : latLng.latitude;
-      y0 = y0 < latLng.longitude ? y0 : latLng.longitude;
-      y1 = y1 > latLng.longitude ? y1 : latLng.longitude;
+    for (var hcf in _groupedHcfMap.values) {
+      final lat = double.tryParse(hcf['latitude'].toString());
+      final lng = double.tryParse(hcf['logitude'].toString());
+      if (lat == null || lng == null) continue;
+
+      final point = LatLng(lat, lng);
+      if (_isPointInsidePolygon(point, polygonPoints)) {
+        _selectedHcfIds.add(hcf['hcfId']);
+        _selectedHcfs.add(hcf);
+      }
     }
 
-    return LatLngBounds(
-      southwest: LatLng(x0, y0),
-      northeast: LatLng(x1, y1),
-    );
+    _calculateTotals();
+    _generateMarkers();
   }
-  // Tap handler to add polygon points
+
   void _onMapTap(LatLng position) {
     setState(() {
-      final markerId = MarkerId('polygon_${_polygonPoints.length}');
       _polygonPoints.add(position);
       _polygonMarkers.add(
         Marker(
-          markerId: markerId,
+          markerId: MarkerId('polygon_${_polygonPoints.length}'),
           position: position,
           draggable: true,
           icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
           onDragEnd: (newPosition) {
-            final index = _polygonPoints.indexWhere((p) => p == position);
+            final index = _polygonPoints.indexOf(position);
             if (index != -1) {
               _polygonPoints[index] = newPosition;
               _updatePolygon();
@@ -307,6 +388,7 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
       _updatePolygon();
     });
   }
+
   void _updatePolygon() {
     setState(() {
       _polygons = {
@@ -329,52 +411,15 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
     });
   }
 
-  // void _filterMarkersWithinPolygon() {
-  //   Set<Marker> insidePolygon = {};
-  //   for (var marker in _markers) {
-  //     if (_isPointInsidePolygon(marker.position, _polygonPoints)) {
-  //       insidePolygon.add(marker);
-  //     }
-  //   }
-  //
-  //   setState(() {
-  //     _markers = insidePolygon;
-  //   });
-  // }
-
-
   void _filterMarkersWithinPolygon() {
-    Set<Marker> insidePolygon = {};
-    List<dynamic> filteredList = [];
+    _selectHcfsInsidePolygon(_polygonPoints);
 
-    for (var marker in _markers) {
-      if (_isPointInsidePolygon(marker.position, _polygonPoints)) {
-        insidePolygon.add(marker);
+  }
 
-        // Match marker with HCF from allHCFList
-        final hcf = hcfList.firstWhere(
-              (h) => h['geoTagLatitude'] == marker.position.latitude && h['geoTagLongitude'] == marker.position.longitude,
-
-        );
-        filteredList.add(hcf);
-      }
-    }
-
-    setState(() {
-      _markers = insidePolygon;
-     filteredList;
-     print(filteredList);
-    });
-    //fetchHCFPolygon(filteredList);
-    Navigator.push(
-      context,
-      MaterialPageRoute(
-        builder: (_) => GetBioWasteData(filteredList),
-      ),
+  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: Colors.red),
     );
-
-    // Navigate to next page with data
-
   }
 
 
@@ -383,6 +428,8 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
   @override
   Widget build(BuildContext context) {
     SizeConfig().init(context);
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
     return StreamProvider<NetworkStatus>(
         create: (context) =>
         NetworkStatusService().networkStatusController.stream,
@@ -396,7 +443,7 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
         children: [
           /// Custom Gradient AppBar
           mAppBar(
-            scTitle: 'CBWTF Bio Waste Data',
+            scTitle:  t.translate('cbwtf_vehicle_assigning'),
             centerTile: true,
 
             //onLeadingIconClick: () => Navigator.pop(context),
@@ -407,6 +454,10 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
               ),
             ),
             showLeading: true,
+            showActions: true,
+            actions: [IconButton(onPressed: (){
+              _openFilterBottomSheet(context,t);
+            }, icon: Icon(Icons.filter_alt_outlined,color: kWhiteColor,))]
           ),
 
 
@@ -424,68 +475,117 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
                   topLeft: Radius.circular(40),
                 ),
               ),
-              child:  isLoading?Center(child: CircularProgressIndicator(color: kPrimaryColor,),):
+              child:  isLoading||_isLoading?Center(child: CircularProgressIndicator(color: kPrimaryColor,),):
               Column(
                 children: [
                   SizedBox(height: responsiveHeight(10)),
-                  // Padding(
-                  //   padding: EdgeInsets.all(10),
-                  //   child: Column(
-                  //     children: [
-                  //       Row(
-                  //         children: [
-                  //           _buildLocationBox(
-                  //             Icons.location_on,
-                  //             'Latitude',
-                  //             '${_center!.latitude.toStringAsFixed(6)} N',
-                  //           ),
-                  //           const SizedBox(width: 12),
-                  //           _buildLocationBox(
-                  //             Icons.location_on,
-                  //             'Longitude',
-                  //             '${_center!.longitude.toStringAsFixed(6)} E',
-                  //           ),
-                  //         ],
-                  //       ),
-                  //       const SizedBox(height: 12),
-                  //       Row(
-                  //         children: [
-                  //           _buildLocationBox(
-                  //             Icons.map,
-                  //             'Range in km.',
-                  //             '$_radiusInKm km',
-                  //             trailing: DropdownButton<double>(
-                  //               value: _radiusInKm,
-                  //               items:
-                  //                   [2, 4, 6, 8, 10].map((e) {
-                  //                     return DropdownMenuItem(
-                  //                       value: e.toDouble(),
-                  //                       child: Text("$e km"),
-                  //                     );
-                  //                   }).toList(),
-                  //               onChanged: (value) {
-                  //                 if (value != null) {
-                  //                   setState(() {
-                  //                     _radiusInKm = value;
-                  //                     fetchNearbyHCFs();
-                  //
-                  //                   });
-                  //                 }
-                  //               },
-                  //             ),
-                  //           ),
-                  //         ],
-                  //       ),
-                  //     ],
-                  //   ),
-                  // ),
+                  // Padding(padding:EdgeInsets.only(left: 20,right: 20,top: 10,bottom: 10), child:validatedApiDropdown(
+                  //   hint: "Assign Vehicle",
+                  //   value: selectedVehicle,
+                  //   items:vehicleList,
+                  //   displayKey: "vehicleNo",
+                  //   icon: Icons.fire_truck_outlined,
+                  //   errorText: "Please select HCF type",
+                  //   onChanged: (v) => setState(() => selectedVehicle = v),
+                  // ))
+                  // ,
+                  Padding(
+                    padding: const EdgeInsets.only(left: 20, right: 20, top: 10, bottom: 10),
+                    child: InkWell(
+                      onTap: () {
+                        _openVehicleBottomSheet(context,t);
+                      },
+                      child: IgnorePointer(
+                        child: Container(
+                          decoration: BoxDecoration(
+                            borderRadius: BorderRadius.circular(14),
+                            color: Colors.grey.shade200,
+                          ),
+
+                          child:validatedApiDropdown(
+                          color: Colors.grey.shade500,
+                          hint:  t.translate('assign_vehicle'),
+                          value: selectedVehicle,
+                          items: vehicleList,
+                          displayKey: "vehicleNo",
+                          icon: Icons.fire_truck_outlined,
+                          errorText: "Please select HCF type",
+                          onChanged: (v) {}, // handled via bottom sheet
+                        ),
+                      )),
+                    ),
+                  ),
+              Padding(
+                  padding: const EdgeInsets.only(left: 10, right: 10, ),
+                  child:Row(
+                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                    children: [
+                    Container(
+                      margin:EdgeInsets.all(5),
+                      padding: EdgeInsets.all(5),
+                      height: 90,
+                      width:90,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey.shade500),
+                          borderRadius: BorderRadius.all(Radius.circular(10))),
+                      child: Column(children: [
+                      Icon(Icons.local_hospital_outlined,color: kPrimaryColor,),
+                      Text( t.translate('total_hcf'),style: TextStyle(fontSize: 10),),
+                      Text(totalhcf!),
+                      
+
+                    ],),),
+                    Container(
+                      margin:EdgeInsets.all(5),
+                      padding: EdgeInsets.all(5),
+                      height: 90,
+                     // width:100,
+                      decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade500),
+                          borderRadius: BorderRadius.all(Radius.circular(10))),
+                      child: Column(children: [
+                        Icon(Icons.transfer_within_a_station,color: kPrimaryColor,),
+                        Text( t.translate('total_weight'),style: TextStyle(fontSize: 10),),
+                        Text('${totalWeight!} Kg'),
+
+
+                      ],),),
+                    Container(
+                      margin:EdgeInsets.all(5),
+                      padding: EdgeInsets.all(5),
+                      height: 90,
+                    //  width:100,
+                      decoration: BoxDecoration(
+                          border: Border.all(color: Colors.grey.shade500),
+                          borderRadius: BorderRadius.all(Radius.circular(10))),
+                      child: Column(
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: [
+                        Icon(Icons.shopping_bag_outlined,color: kPrimaryColor,),
+                        Text( t.translate('total_bags'),style: TextStyle(fontSize: 10),),
+                        Text(totalBags!),
+
+
+                      ],),)
+
+
+
+                  ],),),
+
+
+
+
 
                   SizedBox(
-                    height: responsiveHeight(700),
+                    height: responsiveHeight(520),
                     child:
-                    Padding(
+
+                          SizedBox(
+                            height: MediaQuery.of(context).size.height,
+                            child: Padding(
                       padding: EdgeInsets.only(top: 10,left: 10,right: 10,bottom: 10),
-                      child: GoogleMap(
+                      child: Stack(
+                          children: [GoogleMap(
 
                       onMapCreated: (controller) => _mapController = controller,
                       initialCameraPosition: CameraPosition(
@@ -495,6 +595,7 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
 
                       markers: _markers.union(_polygonMarkers),
                       polygons: _polygons,
+                        mapType: _isSatellite ? MapType.satellite : MapType.normal,
                      // circles: _circles,
                       onTap: _onMapTap,
                       // onLongPress: (LatLng latLng) {
@@ -516,8 +617,26 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
 
 
                       myLocationEnabled: true,
-                    )),
-                  ),
+                    ),
+                    Positioned(
+                      top: 60,
+                      right: 10,
+                      child: Container(
+                        height: 40,
+                        width: 40,
+                        decoration: BoxDecoration(
+                          color: kWhiteColor.withOpacity(0.7),
+
+                        ),
+                          child:
+                      IconButton(onPressed: (){
+                        setState(() {
+                          _isSatellite = !_isSatellite; // Switch map type
+                        });
+                      }, icon: Icon(Icons.layers,size: 25,color: Colors.black54,))),
+
+                    ),])),),),
+
                  Row(
                    mainAxisAlignment: MainAxisAlignment.spaceAround,
                      children: [
@@ -544,38 +663,46 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
                   TextButton.icon(
                     onPressed: () {
                       setState(() {
+
+                        _clearPolygon();
                         _polygonPoints.clear();
                         _polygons.clear();
+                        _polygonMarkers.clear();
+
+                        _selectedHcfIds.clear();
+                        _selectedHcfs.clear();
+
+                        totalhcf = '0';
+                        totalWeight = 0;
+                        totalBags = '0';
+
                         _markers = _allMarkers;
-                        _clearPolygon();
+                        _generateMarkers();
                       });
                     },
                     icon: const Icon(Icons.refresh),
-                    label: const Text("Reset"),
+                    label:  Text( t.translate('reset')),
                   ),
                    TextButton.icon(
                      onPressed: () {
-                       setState(() {
-                         // _isDrawing = !_isDrawing;
-                         // if (!_isDrawing) {
-                         _polygonPoints.isNotEmpty?
+                       _assignVehicleToSelectedHcfs(t);
+                       // setState(() {
+                       //   // _isDrawing = !_isDrawing;
+                       //   // if (!_isDrawing) {
+                       //   _polygonPoints.isNotEmpty?
+                       //
+                       //     _filterMarkersWithinPolygon():
+                       //   ScaffoldMessenger.of(context).showSnackBar(
+                       //     SnackBar(
+                       //       content: Text('Please Select Hospitals'),
+                       //
+                       //     ),
+                       //   );
 
-                           _filterMarkersWithinPolygon():
-                         ScaffoldMessenger.of(context).showSnackBar(
-                           SnackBar(
-                             content: Text('Please Select Hospitals'),
-
-                           ),
-                         );;
-                         // } else {
-                         //   _polygonPoints.clear();
-                         //   _polygons.clear();
-                         //   _clearPolygon();
-                         // }
-                       });
+                      // });
                      },
                      icon: const Icon(Icons.done),
-                     label: const Text("Ok"),
+                     label:  Text( t.translate('ok'),),
                    )
 
 
@@ -587,6 +714,317 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
       ),
       )), offlineChild: Offline()));
   }
+  void _openFilterBottomSheet(BuildContext contex,t) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) {
+        return StatefulBuilder(
+          builder: (context, setModalState) {
+            return SafeArea(
+              child: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+
+                  /// 🔹 TRANSPARENT CLOSE ICON (ABOVE SHEET)
+                  GestureDetector(
+                    onTap: () => Navigator.pop(context),
+                    child: Container(
+                      margin: const EdgeInsets.only(bottom: 8),
+                      height: 60,
+                      width: 60,
+                      decoration: BoxDecoration(
+                        border: Border.all(color: kWhiteColor),
+                        color: Colors.transparent,
+                        borderRadius: BorderRadius.all(Radius.circular(10)),
+                        shape: BoxShape.rectangle,
+                        boxShadow: [
+                          BoxShadow(
+                            color: Colors.black26,
+                            blurRadius: 6,
+                          ),
+                        ],
+                      ),
+                      child: const Icon(
+                        Icons.close,
+                        color: kWhiteColor,
+                      ),
+                    ),
+                  ),
+
+                  /// 🔹 ACTUAL BOTTOM SHEET
+                  AnimatedContainer(
+                    duration: const Duration(milliseconds: 250),
+                    height: showCalendar?600:300,
+                    padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
+                    decoration: const BoxDecoration(
+                      color: Colors.white,
+                      borderRadius:
+                      BorderRadius.vertical(top: Radius.circular(24)),
+                    ),
+                    child: Column(
+                      children: [
+                        Text(
+                    t.translate('filters'),
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+
+                        const SizedBox(height: 20),
+
+                        /// Date range box
+                        InkWell(
+                          onTap: () {
+                            setModalState(() {
+                              showCalendar = !showCalendar;
+                            });
+                          },
+                          child: _dateRangeBox(t),
+                        ),
+
+                        /// Inline calendar
+                        if (showCalendar) ...[
+                          const SizedBox(height: 12),
+                          CalendarDatePicker(
+                            initialDate:
+                            rangeStartDate ?? DateTime.now(),
+                            firstDate: DateTime(2020),
+                            lastDate: DateTime.now(),
+                            onDateChanged: (date) {
+                              setModalState(() {
+                                if (rangeStartDate == null ||
+                                    rangeEndDate != null) {
+                                  rangeStartDate = date;
+                                  rangeEndDate = null;
+                                } else if (date.isAfter(rangeStartDate!)) {
+                                  rangeEndDate = date;
+                                  showCalendar = false;
+                                }
+                              });
+                            },
+                          ),
+                        ],
+
+                        const Spacer(),
+
+                        /// Buttons
+                        Row(
+                          children: [
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: () {
+                                  setModalState(() {
+                                    rangeStartDate = null;
+                                    rangeEndDate = null;
+                                    showCalendar = false;
+                                  });
+                                },
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.grey.shade300,
+                                ),
+                                child:  Text(
+            t.translate('cancel'),
+                                  style: TextStyle(color: kBlackColor),
+                                ),
+                              ),
+                            ),
+                            const SizedBox(width: 12),
+                            Expanded(
+                              child: ElevatedButton(
+                                onPressed: rangeStartDate != null &&
+                                    rangeEndDate != null
+                                    ? () {
+                                  Navigator.pop(context);
+                                  debugPrint(
+                                      "Range: $rangeStartDate → $rangeEndDate");
+                                  setState(() {
+                                    showCalendar=false;
+
+                                  });
+
+                                  fetchNearbyHCFs(rangeStartDate.toString().substring(0,10),rangeEndDate.toString().substring(0,10));
+                                }
+                                    : null,
+                                style: ElevatedButton.styleFrom(
+                                  backgroundColor: Colors.deepOrange,
+                                ),
+                                child:  Text(
+            t.translate('search'),
+                                  style: TextStyle(color: kWhiteColor),
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
+              ),
+            );
+          },
+        );
+      },
+    );
+  }
+
+  Widget _dateRangeBox(t) {
+    return Container(
+      padding: const EdgeInsets.symmetric(vertical: 14, horizontal: 12),
+      decoration: BoxDecoration(
+        border: Border.all(color: Colors.grey.shade400),
+        borderRadius: BorderRadius.circular(12),
+      ),
+      child: Row(
+        children: [
+          //const Icon(Icons.date_range, color: Colors.grey),
+          const SizedBox(width: 10),
+          Expanded(
+            child: Text(
+              rangeStartDate == null
+                  ?  t.translate('custom_date')
+                  : rangeEndDate == null
+                  ? "From ${DateFormat('dd-MM-yyyy').format(rangeStartDate!)}"
+                  : "${DateFormat('dd-MM-yyyy').format(rangeStartDate!)} - "
+                  "${DateFormat('dd-MM-yyyy').format(rangeEndDate!)}",
+              style: const TextStyle(fontWeight: FontWeight.w600),
+            ),
+          ),
+          Icon(
+            showCalendar
+                ? Icons.keyboard_arrow_up
+                : Icons.keyboard_arrow_down,
+          ),
+        ],
+      ),
+    );
+  }
+  void _openVehicleBottomSheet(BuildContext context,t) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // IMPORTANT
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6, // control height
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+
+              // Drag handle
+              Container(
+                width: 50,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+              Text(
+                  t.translate('select_vehicle'),
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+
+              const SizedBox(height: 10),
+              const Divider(),
+
+              // ✅ ONLY ListView scrolls
+              Expanded(
+                child: ListView.separated(
+                  itemCount: vehicleList.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final vehicle = vehicleList[index];
+
+                    return ListTile(
+                      leading: const Icon(Icons.fire_truck_outlined),
+                      title: Text(vehicle["vehicleNo"] ?? "-"),
+                      trailing: selectedVehicle == vehicle
+                          ? const Icon(Icons.check_circle, color: Colors.green)
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          selectedVehicle = vehicle;
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
+  }
+  void _assignVehicleToSelectedHcfs(t) async{
+    if (_selectedHcfIds.isEmpty) {
+      // No HCF selected
+      _showError("Please select at least one HCF or draw a polygon");
+      return;
+    }
+
+    if (selectedVehicle == null || selectedVehicle!.isEmpty) {
+      // Vehicle not selected
+      _showError("Please select a vehicle");
+      return;
+    }
+    print('done');
+   // print(_selectedHcfs);
+    var body = await ApiService.buildWastePayloadList(
+      inputList: _selectedHcfs,
+      vehicle: selectedVehicle!,
+    );
+    print(body);
+
+    if (body.isNotEmpty) {
+      var value = await ApiService.AssignVehicle(
+        context,
+        body,
+      );
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('${value['message']}')),
+      );
+      if (value['status'] == 'Succes') {
+        showDialog(
+          context: context,
+          barrierDismissible: false,
+          builder: (_) => SuccessDialog(
+            buttonText: t.translate('save'),
+
+            message:t.translate('vehicle_assigned'),
+
+            onOk: () {
+             // Navigator.pop(context);
+
+              //launchUrl(Uri.parse('https://www.ecmpcb.in/registration'));
+            },
+          ),
+        );
+
+
+      }}
+
+    // Both HCFs/polygon and vehicle selected → call API
+   // _hitAssignVehicleApi();
+
+  }
+
+
+
+
+
+
+
 
 
 }

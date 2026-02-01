@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:mpcb_bio_waste/HCF/add_bio_waste.dart';
+import 'package:mpcb_bio_waste/Localization/app_localization.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'dart:convert';
@@ -13,6 +14,7 @@ import '../Global/constant.dart';
 import '../Global/images.dart';
 import '../Global/size_config.dart';
 import '../Global/url.dart';
+import '../localization/provider.dart';
 import '../network/network_aware.dart';
 import '../network/network_status.dart';
 import '../network/offline.dart';
@@ -31,7 +33,7 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
   List<Map<String, dynamic>> selectedWasteEntries = [];
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   bool isLoading=false;
-  Future<void> SaveBioWaste() async {
+  Future<void> SaveBioWaste(t) async {
     print('length');
     print(widget.tableData.length);
     print(groupedData.length);
@@ -107,7 +109,7 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
           // }
 
 
-          showSuccessDialog(context,data);
+          showSuccessDialog(context,data,t);
 
 
 
@@ -182,7 +184,8 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
   @override
   Widget build(BuildContext context) {
     SizeConfig().init(context);
-
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
     return StreamProvider<NetworkStatus>(
         create: (context) =>
     NetworkStatusService().networkStatusController.stream,
@@ -195,9 +198,11 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
     children: [
     /// Custom Gradient AppBar
     mAppBar(
-    scTitle: 'HCF Bio Waste Data',
+    scTitle:  t.translate('hcf_data'),
     centerTile: true,
-      onLeadingIconClick: () => Navigator.pop(context),
+    leadingWidget: IconButton(onPressed: (){
+      Navigator.pop(context);
+    }, icon: Icon(Icons.arrow_back,color: kWhiteColor,)),
     showLeading: true,
 
     ),
@@ -219,7 +224,7 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
     child: Column(
           children: [
 
-            _buildDataTable(),
+            _buildDataTable(t),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
@@ -231,10 +236,10 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
                       vertical: 5,
                       horizontal: 15,
                     ),
-                    text: 'Save',
+                    text:  t.translate('save'),
                     onPressed:(){
                       groupedData.isNotEmpty && widget.tableData.isNotEmpty?
-                      SaveBioWaste():{ScaffoldMessenger.of(context).showSnackBar(
+                      SaveBioWaste(t):{ScaffoldMessenger.of(context).showSnackBar(
                         SnackBar(content: Text('Please Add waste'), backgroundColor: Colors.red),
                       )};
                       },
@@ -248,7 +253,7 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
                       vertical: 5,
                       horizontal: 15,
                     ),
-                    text: 'Cancel',
+                    text:  t.translate('cancel'),
                     onPressed: () {
                       showDialog(
                         context: context,
@@ -268,8 +273,8 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
                                   const SizedBox(height: 24),
 
                                   // Success Text
-                                  const Text(
-                                    "Are your sure you want to go back ?",
+                                  Text(
+                                      t.translate('are_you_sure_you_want_to_go_back')  ,
                                     textAlign: TextAlign.center,
                                     style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                                   ),
@@ -285,7 +290,7 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
                                         vertical: 5,
                                         horizontal: 15,
                                       ),
-                                      text: 'No',
+                                      text:  t.translate('no')  ,
                                       onPressed: () {
                                         Navigator.pop(context);
 
@@ -300,7 +305,7 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
                                         vertical: 5,
                                         horizontal: 15,
                                       ),
-                                      text: 'Yes',
+                                      text:  t.translate('yes')  ,
                                       onPressed: () async{
                                         groupedData.clear();
                                         widget.tableData.clear();
@@ -345,7 +350,7 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
   }
 
 
-  Widget _buildDataTable() {
+  Widget _buildDataTable(t) {
     return  Table(
       border: TableBorder.all(
         color: Colors.grey.shade300,
@@ -370,41 +375,44 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
               colors: [Color(0xFF00B4DB), Color(0xFF0099CC)],
             ),
           ),
-          children: const [
+          children: [
             Padding(
               padding: EdgeInsets.all(8),
               child: Text(
-                "Sr. No",
+                t.translate('srno')  ,
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
             Padding(
               padding: EdgeInsets.all(8),
               child: Text(
-                "Category",
+    t.translate('category')  ,
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
             Padding(
               padding: EdgeInsets.all(8),
               child: Text(
-                "Total Weight (kg)",
+                t.translate('total_weight')  ,
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
+                textAlign: TextAlign.center,
               ),
             ),
             Padding(
               padding: EdgeInsets.all(8),
               child: Text(
-                "No. of Bags",
+                t.translate('total_bags')  ,
                 style: TextStyle(
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
@@ -601,7 +609,7 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
     // );
   }
 }
-void showSuccessDialog(BuildContext context,wasteList) {
+void showSuccessDialog(BuildContext context,wasteList,t) {
   showDialog(
     context: context,
     barrierDismissible: false, // User must tap button
@@ -620,8 +628,8 @@ void showSuccessDialog(BuildContext context,wasteList) {
               const SizedBox(height: 24),
 
               // Success Text
-              const Text(
-                "Bio Waste Data\nadded successfully.",
+               Text(
+                t.translate('bmw_data_save')  ,
                 textAlign: TextAlign.center,
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
               ),
@@ -635,7 +643,7 @@ void showSuccessDialog(BuildContext context,wasteList) {
                     vertical: 5,
                     horizontal: 15,
                   ),
-                  text: 'Ok',
+                  text:   t.translate('ok'),
                   onPressed: () {
                     Navigator.pop(context);
                     Navigator.pushReplacement(

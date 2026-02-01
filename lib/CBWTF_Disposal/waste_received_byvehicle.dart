@@ -17,6 +17,8 @@ import '../Global/constant.dart';
 
 import '../Global/size_config.dart';
 import '../Global/url.dart';
+import '../Localization/app_localization.dart';
+import '../localization/provider.dart';
 import '../network/network_aware.dart';
 import '../network/network_status.dart';
 import '../network/offline.dart'; // for Future
@@ -156,6 +158,8 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
     SizeConfig().init(context);
     return StreamProvider<NetworkStatus>(
         create: (context) =>
@@ -172,7 +176,7 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
               /// Custom Gradient AppBar
               mAppBar(
                   //onLeadingIconClick: () => Navigator.pop(context),
-                  scTitle: 'Bio Waste Received in CBWTF',
+                  scTitle: t.translate('bmw_details_for_disposal'),
                   centerTile: false,
                   leadingWidget: Builder(
                     builder: (context) => IconButton(
@@ -229,13 +233,13 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
                               colors: [kPrimaryColor, kPrimaryDarkColor],
                             ),
                           ),
-                          children: const [
-                            _TableHeaderCell("Sr.\nNo."),
-                            _TableHeaderCell("Date"),
-                            _TableHeaderCell("Name Of HCF"),
-                            _TableHeaderCell("Total\nno. of Bags"),
-                            _TableHeaderCell("Total Waste\nGenerated"),
-                            _TableHeaderCell("Action"),
+                          children: [
+                            _TableHeaderCell(t.translate('srno')),
+                            _TableHeaderCell(t.translate('date')),
+                            _TableHeaderCell(t.translate('hcf_name')),
+                            _TableHeaderCell(t.translate('total_bags')),
+                            _TableHeaderCell(t.translate('total_waste')),
+                            _TableHeaderCell(t.translate('action')),
 
                           ],
                         ),
@@ -275,26 +279,26 @@ class _WasteReceivedByvehicleState extends State<WasteReceivedByvehicle> {
                     ),
                    SizedBox(height: 15,),
                    //  Spacer(),
-                      SizedBox(
-                        width: responsiveWidth(200),
-                        child: AppButton(
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 10,
-                            horizontal: 15,
-                          ),
-                          text: 'Dispose All',
-                          onPressed: () {
-                            Navigator.push(
-                              context,
-                              MaterialPageRoute(
-                                builder: (_) => DisposalOverallCollection(),
-                              ),
-                            );
-
-                          },
-                          color: Colors.deepOrange,
-                        ),
-                      ),
+                   //    SizedBox(
+                   //      width: responsiveWidth(200),
+                   //      child: AppButton(
+                   //        padding: const EdgeInsets.symmetric(
+                   //          vertical: 10,
+                   //          horizontal: 15,
+                   //        ),
+                   //        text: 'Dispose All',
+                   //        onPressed: () {
+                   //          Navigator.push(
+                   //            context,
+                   //            MaterialPageRoute(
+                   //              builder: (_) => DisposalOverallCollection(),
+                   //            ),
+                   //          );
+                   //
+                   //        },
+                   //        color: Colors.deepOrange,
+                   //      ),
+                   //    ),
 
                   ])))
               )])

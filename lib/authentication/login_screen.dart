@@ -1,6 +1,7 @@
 import 'dart:io';
 
 import 'package:device_info_plus/device_info_plus.dart';
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
@@ -12,14 +13,19 @@ import 'dart:convert';
 
 import 'package:mpcb_bio_waste/Global/images.dart';
 import 'package:mpcb_bio_waste/Global/url.dart';
+import 'package:mpcb_bio_waste/authentication/new_hcf_registration.dart';
 import 'package:mpcb_bio_waste/homeScreen.dart';
 import 'package:package_info_plus/package_info_plus.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:url_launcher/url_launcher.dart';
 
 import '../CBWTF_Disposal/disposal_overall_colection.dart';
 import '../CBWTF_Reception/overall_Data_collection.dart';
 import '../Global/app_routes.dart';
+import '../Localization/app_localization.dart';
+
+import '../localization/provider.dart';
 import 'forget_password.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -36,18 +42,19 @@ class _LoginScreenState extends State<LoginScreen> {
   bool keepMeSignedIn = true;
   bool isLoading = false;
   String? userRole;
-  bool isobscured=false;
+  bool isobscured = false;
   bool _isLoading = true;
   List<Map<String, dynamic>> _tableData = [];
-  List <Map<String, dynamic>> formattedList=[];
+  List<Map<String, dynamic>> formattedList = [];
 
   String? osVersion;
   final secureStorage = FlutterSecureStorage();
-  Map<String,dynamic> device_info={};
+  Map<String, dynamic> device_info = {};
   Future<void> saveCredentials(String username, String password) async {
     await secureStorage.write(key: 'username', value: username);
     await secureStorage.write(key: 'password', value: password);
   }
+
   String formatDate(String dateStr) {
     try {
       DateTime parsedDate = DateTime.parse(dateStr);
@@ -56,12 +63,14 @@ class _LoginScreenState extends State<LoginScreen> {
       return 'Invalid date';
     }
   }
+
   Future<void> clearCredentials() async {
     await secureStorage.delete(key: 'username');
     await secureStorage.delete(key: 'password');
   }
+
   Future<void> loadSavedCredentials() async {
-    device_info=await getDeviceInfo();
+    device_info = await getDeviceInfo();
     print(device_info);
     String? savedUsername = await secureStorage.read(key: 'username');
     String? savedPassword = await secureStorage.read(key: 'password');
@@ -70,11 +79,10 @@ class _LoginScreenState extends State<LoginScreen> {
       _usernameController.text = savedUsername;
       _passwordController.text = savedPassword;
 
-      keepMeSignedIn= true;
+      keepMeSignedIn = true;
       setState(() {});
     }
   }
-
 
   Future<Map<String, dynamic>> getDeviceInfo() async {
     final deviceInfo = DeviceInfoPlugin();
@@ -103,42 +111,43 @@ class _LoginScreenState extends State<LoginScreen> {
       "device_model_name": deviceModelName,
       "device_manufacturer": deviceManufacturer,
       "device_type": deviceType,
-      "device_id": androidOrVendorId
+      "device_id": androidOrVendorId,
     };
   }
-
 
   Future<void> _setUser(Map<String, dynamic> result) async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     prefs.setString('user', json.encode(result));
   }
+
   Future getOSVersion() async {
     DeviceInfoPlugin deviceInfo = DeviceInfoPlugin();
     osVersion = "Unknown";
 
     if (Platform.isAndroid) {
       AndroidDeviceInfo androidInfo = await deviceInfo.androidInfo;
-      osVersion = "${androidInfo.brand} ${androidInfo.model} Android ${androidInfo.version.release}";
+      osVersion =
+          "${androidInfo.brand} ${androidInfo.model} Android ${androidInfo.version.release}";
       //model_name=androidInfo.model;
       // Example: "Android 13"
     } else if (Platform.isIOS) {
       IosDeviceInfo iosInfo = await deviceInfo.iosInfo;
-      osVersion = "Apple ${iosInfo.utsname.machine} iOS ${iosInfo.systemVersion}"; // Example: "iOS 17.2"
+      osVersion =
+          "Apple ${iosInfo.utsname.machine} iOS ${iosInfo.systemVersion}"; // Example: "iOS 17.2"
     }
-
-
   }
+
   String? packageName;
   void checkVersion() async {
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
 
     packageName = packageInfo.packageName;
-
   }
 
   Future<String?> getLatestVersion() async {
     final url = Uri.parse(
-        "https://play.google.com/store/apps/details?id=$packageName&hl=en");
+      "https://play.google.com/store/apps/details?id=$packageName&hl=en",
+    );
 
     final response = await http.get(url);
 
@@ -151,6 +160,7 @@ class _LoginScreenState extends State<LoginScreen> {
     }
     return null; // Return null if fetching fails
   }
+
   Future<void> _login(String username, String password) async {
     final uri = Uri.parse('$login_baseurl$LOGIN');
     final headers = {'Content-Type': 'application/json'};
@@ -181,7 +191,9 @@ class _LoginScreenState extends State<LoginScreen> {
         final data = jsonDecode(response.body);
 
         if (!data.containsKey('jwtToken')) {
-          _showError(data['message'] ?? 'Invalid credentials or malformed response');
+          _showError(
+            data['message'] ?? 'Invalid credentials or malformed response',
+          );
           return;
         }
 
@@ -191,18 +203,20 @@ class _LoginScreenState extends State<LoginScreen> {
         // 💾 Save user data
         await prefs.setBool("isLoggedIn", true);
         await prefs.setString('UserId', user['userId'].toString());
-        await prefs.setString('Username', data['username']);
+        await prefs.setString('username', data['username']);
+        await prefs.setString('email', user['emailId']);
         await prefs.setString('Token', data['jwtToken']);
         await prefs.setString('osversion', osVersion ?? '');
         _setUser(user);
-        keepMeSignedIn == true?
-        await saveCredentials(_usernameController.text, _passwordController.text):
-        await clearCredentials();
+        keepMeSignedIn == true
+            ? await saveCredentials(
+              _usernameController.text,
+              _passwordController.text,
+            )
+            : await clearCredentials();
 
         setState(() {
           prefs.setBool("isLoggedIn", true);
-
-
         });
 
         userRole = await GetUserType(user['lookupDetIdRoleType']);
@@ -213,11 +227,11 @@ class _LoginScreenState extends State<LoginScreen> {
         // 🔐 Redirect
         if (user['floginPwreset'] == 'N') {
           fetchAssignedHCFData();
-          _redirectToRoleScreen(userRole,user["bulkDataSaveFlag"]);
+          _redirectToRoleScreen(userRole, user["bulkDataSaveFlag"]);
         } else {
           Navigator.push(
             context,
-            MaterialPageRoute(builder: (context) => ForgotPassword(data)),
+            MaterialPageRoute(builder: (context) => ResetPasswordScreen()),
           );
         }
       } else {
@@ -230,14 +244,16 @@ class _LoginScreenState extends State<LoginScreen> {
             _showError('Server error. Please try again later.');
             break;
           default:
-            _showError('Unexpected error (${response.statusCode}): ${response.reasonPhrase}');
+            _showError(
+              'Unexpected error (${response.statusCode}): ${response.reasonPhrase}',
+            );
         }
       }
     } catch (e) {
-
       _showError('Login failed: Please Enter Valid Credentials');
     }
   }
+
   // void _redirectToRoleScreen(String? role,bulk) {
   //   final routeMap = {
   //     'HCF User': AppRoutes.hcf_biowasteScreen,
@@ -266,13 +282,13 @@ class _LoginScreenState extends State<LoginScreen> {
     print(bulk);
     if (role == 'Disposal User') {
       if (bulk == 'N') {
-        Navigator.of(context).popAndPushNamed(AppRoutes.waste_received_byvehicle);
+        Navigator.of(
+          context,
+        ).popAndPushNamed(AppRoutes.waste_received_byvehicle);
       } else {
         Navigator.push(
           context,
-          MaterialPageRoute(
-            builder: (_) => DisposalOverallCollection(),
-          ),
+          MaterialPageRoute(builder: (_) => DisposalOverallCollection()),
         );
       }
       return;
@@ -290,11 +306,9 @@ class _LoginScreenState extends State<LoginScreen> {
     //   }
     //   return;
 
-
-
     final routeMap = {
       'HCF User': AppRoutes.hcf_biowasteScreen,
-      'CBWT User': AppRoutes.nearby_hcf,
+      'CBWT Assign User': AppRoutes.nearby_hcf,
       'CBWT Reception User': AppRoutes.vehicle_screen,
       'Vehicle  User': AppRoutes.vehicle_nearby_hcf,
     };
@@ -308,8 +322,9 @@ class _LoginScreenState extends State<LoginScreen> {
   }
 
   List<Map<String, dynamic>> transformResponse(
-      List responseList,
-      {required int userId}) {
+    List responseList, {
+    required int userId,
+  }) {
     return responseList.map((item) {
       return {
         "cbwtfRecpDispIds": item["cbwtfRecpDispIds"],
@@ -318,10 +333,11 @@ class _LoginScreenState extends State<LoginScreen> {
         "pickupNoOfbag": item["pickupNoOfbag"],
         "pickupTotalQuantityBagCbwtfKg": item["pickupTotalQuantityBagCbwtfKg"],
         "lookupDetIdCategory": 3,
-        "userId": userId
+        "userId": userId,
       };
     }).toList();
   }
+
   Future<void> fetchAssignedHCFData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
@@ -329,44 +345,54 @@ class _LoginScreenState extends State<LoginScreen> {
       final UserId = prefs.getString('UserId');
 
       final response = await http.get(
-        Uri.parse('${baseurl}${GET_DISPOSAL_DATA}fromDate=${DateTime.now().toString().substring(0,10)}&toDate=${DateTime.now().toString().substring(0,10)}&userId=$UserId'),
+        Uri.parse(
+          '${baseurl}${GET_DISPOSAL_DATA}fromDate=${DateTime.now().toString().substring(0, 10)}&toDate=${DateTime.now().toString().substring(0, 10)}&userId=$UserId',
+        ),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
-        },);
-      print('${baseurl}${GET_DISPOSAL_DATA}fromDate=${DateTime.now().toString().substring(0,10)}&toDate=${DateTime.now().toString().substring(0,10)}&userId=$UserId');
+        },
+      );
+      print(
+        '${baseurl}${GET_DISPOSAL_DATA}fromDate=${DateTime.now().toString().substring(0, 10)}&toDate=${DateTime.now().toString().substring(0, 10)}&userId=$UserId',
+      );
       print(response.body);
       if (response.statusCode == 200) {
-        Map<String,dynamic>value = jsonDecode(response.body);
-        List data=value['data']==null?[]:value['data'];
-        formattedList=transformResponse(data, userId: int.parse(UserId!));
+        Map<String, dynamic> value = jsonDecode(response.body);
+        List data = value['data'] == null ? [] : value['data'];
+        formattedList = transformResponse(data, userId: int.parse(UserId!));
         print(formattedList);
 
-
-
-
         setState(() {
-          _tableData = data.map((e) => {
-            'wasteId':e['hcfWasteId'],
-            'date': formatDate(e['assignDateCbwtf']),
-            'name': e['vehicleNo'],
-            'bags': e['totalNoOfBags'],
-            'waste': e['totalQuantityBagKg'],
-          }).toList();
+          _tableData =
+              data
+                  .map(
+                    (e) => {
+                      'wasteId': e['hcfWasteId'],
+                      'date': formatDate(e['assignDateCbwtf']),
+                      'name': e['vehicleNo'],
+                      'bags': e['totalNoOfBags'],
+                      'waste': e['totalQuantityBagKg'],
+                    },
+                  )
+                  .toList();
           _isLoading = false;
         });
         print(_tableData);
       } else {
         // handle error
         setState(() => _isLoading = false);
-      }}
-    catch (e) {
+      }
+    } catch (e) {
       print('Error fetching HCFs: $e');
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('Error fetching HCFs: $e'), backgroundColor: Colors.red),
+        SnackBar(
+          content: Text('Error fetching HCFs: $e'),
+          backgroundColor: Colors.red,
+        ),
       );
-    }}
-
+    }
+  }
 
   void _showError(String message) {
     if (context.mounted) {
@@ -375,9 +401,10 @@ class _LoginScreenState extends State<LoginScreen> {
       );
     }
   }
+
   Future<String?> GetUserType(id) async {
     setState(() {
-      isLoading=true;
+      isLoading = true;
     });
     SharedPreferences prefs = await SharedPreferences.getInstance();
     var token = prefs.getString('Token');
@@ -388,27 +415,19 @@ class _LoginScreenState extends State<LoginScreen> {
         'Authorization': 'Bearer $token',
       };
 
-      final url = Uri.parse(
-        '${masterurl}${ROLE_TYPE}$id',
-      );
+      final url = Uri.parse('${masterurl}${ROLE_TYPE}$id');
 
-      final response = await http.get(
-        url,
-        headers: headers,
-      );
-
+      final response = await http.get(url, headers: headers);
 
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
-        Map<String,dynamic> userRole=jsonResponse['data'];
+        Map<String, dynamic> userRole = jsonResponse['data'];
         print(userRole['lookupDetDescEn']);
         return userRole['lookupDetDescEn'];
-
-
       } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Authentication Error')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('Authentication Error')));
         print("HTTP error: ${response.statusCode}");
       }
     } catch (e) {
@@ -418,20 +437,19 @@ class _LoginScreenState extends State<LoginScreen> {
       print('Error fetching bio waste summary: $e');
     }
     return null;
-
-
   }
-
 
   void _redirectToPlayStore() async {
     // String packageName = "com.example.myapp"; // Replace with your app's package name
-    final playStoreUrl = "https://play.google.com/store/apps/details?id=$packageName";
+    final playStoreUrl =
+        "https://play.google.com/store/apps/details?id=$packageName";
     if (await canLaunch(playStoreUrl)) {
       await launch(playStoreUrl);
     } else {
       print("Could not open Play Store.");
     }
   }
+
   @override
   void initState() {
     super.initState();
@@ -439,26 +457,27 @@ class _LoginScreenState extends State<LoginScreen> {
 
     getOSVersion();
     loadSavedCredentials();
-
   }
+
   @override
   Widget build(BuildContext context) {
+
+
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
+
     return Scaffold(
       body: Stack(
         children: [
           // Background image
-          SizedBox.expand(
-            child: Image.asset(
-              background,
-              fit: BoxFit.cover,
-            ),
-          ),
+          SizedBox.expand(child: Image.asset(background, fit: BoxFit.cover)),
 
           // Login form card
           Align(
             alignment: Alignment.bottomCenter,
             child: SingleChildScrollView(
-              child: SafeArea( // ✅ Fix: respects navigation bar & notch
+              child: SafeArea(
+                // ✅ Fix: respects navigation bar & notch
                 top: false, // keep only bottom safe padding
                 child: Container(
                   margin: const EdgeInsets.symmetric(horizontal: 15),
@@ -477,19 +496,23 @@ class _LoginScreenState extends State<LoginScreen> {
                         Image.asset(logo, width: 100),
                         const SizedBox(height: 10),
                         const Text(
-                          'Bio Waste App',
+                          'BMW Waste Management',
                           style: TextStyle(
-                              fontSize: 18, fontWeight: FontWeight.bold),
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
-                        const SizedBox(height: 30),
-                        const Text(
-                          'Sign In',
+                        const SizedBox(height: 10),
+                         Text(
+    t.translate('sign_in') ,
                           style: TextStyle(
-                              fontSize: 20, fontWeight: FontWeight.bold),
+                            fontSize: 20,
+                            fontWeight: FontWeight.bold,
+                          ),
                         ),
                         const SizedBox(height: 8),
-                        const Text(
-                          'Welcome! Enter username & password\n to continue.',
+                         Text(
+                          t.translate('welcome'),
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 13),
                         ),
@@ -497,69 +520,143 @@ class _LoginScreenState extends State<LoginScreen> {
 
                         // Username
                         AppTextfield(
-                          hintText: "Username",
+                          hintText:   t.translate('username'),
                           controller: _usernameController,
                           prefixIcon: Icons.person_outline_outlined,
-                          validator: (value) => value == null || value.isEmpty
-                              ? 'Please enter username'
-                              : null,
+                          validator:
+                              (value) =>
+                                  value == null || value.isEmpty
+                                      ? 'Please enter username'
+                                      : null,
                         ),
                         const SizedBox(height: 16),
 
                         // Password
                         AppTextfield(
                           controller: _passwordController,
-                          prefixIcon: Icons.password,
-                          suffixIcon: GestureDetector(
-                            onTap: (){
-                              setState(() {
-                                isobscured=! isobscured;
-                              });
-                            },
-                              child:Icon(Icons.remove_red_eye_outlined,color: isobscured?kPrimaryColor:Colors.grey,)),
-                          obscureText: isobscured,
-                          validator: (value) => value == null || value.isEmpty
-                              ? 'Enter password'
-                              : null,
-                          hintText: 'Password',
+                          prefixIcon: Icons.lock_outline,
+                          // suffixIcon: GestureDetector(
+                          //   onTap: (){
+                          //     setState(() {
+                          //       isobscured=! isobscured;
+                          //     });
+                          //   },
+                          //     child:Icon(Icons.remove_red_eye_outlined,color: Colors.grey,)),
+                          obscureText: true,
+                          validator:
+                              (value) =>
+                                  value == null || value.isEmpty
+                                      ? 'Enter password'
+                                      : null,
+                          hintText:   t.translate('password'),
                         ),
 
-                        Align(
-                          alignment: Alignment.bottomRight,
-                          child: TextButton(
-                            onPressed: () {},
-                            child: const Text(
-                              'Forgot Password?',
-                              style: TextStyle(color: Colors.grey),
-                            ),
-                          ),
-                        ),
-
+                        SizedBox(height: 10),
                         Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
                           children: [
-                            Checkbox(
-                              value: keepMeSignedIn,
-                              onChanged: (value) {
-                                setState(() => keepMeSignedIn = value!);
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder:
+                                        (context) => NewHCFRegisterScreen(),
+                                  ),
+                                );
                               },
+                              child:  Text(
+                                t.translate('new_hcf'),
+                                style: TextStyle(
+                                  color: Color(0xFF2196F3),
+                                  fontSize: 11,
+                                ),
+                              ),
                             ),
-                            const Text('Keep me Sign In'),
+
+                            TextButton(
+                              onPressed: () {
+                                Navigator.push(
+                                  context,
+                                  MaterialPageRoute(
+                                    builder: (context) => ResetPasswordScreen(),
+                                  ),
+                                );
+                              },
+                              child:  Text(
+    t.translate('forgot_password'),
+                                style: TextStyle(
+                                  color: Colors.grey,
+                                  fontSize: 11,
+                                ),
+                              ),
+                            ),
                           ],
                         ),
 
-                        const SizedBox(height: 20),
+                        // Row(
+                        //   children: [
+                        //     Checkbox(
+                        //       value: keepMeSignedIn,
+                        //       onChanged: (value) {
+                        //         setState(() => keepMeSignedIn = value!);
+                        //       },
+                        //     ),
+                        //     const Text('Keep me Sign In'),
+                        //   ],
+                        // ),
 
-                        // Sign in button
+
                         AppButton(
-                          text: 'Sign In',
+                          text: t.translate('sign_in'),
                           onPressed: () {
-                            _login(_usernameController.text,
-                                _passwordController.text);
+                            _login(
+                              _usernameController.text,
+                              _passwordController.text,
+                            );
                           },
                           isLoading: isLoading,
                           color: Colors.deepOrange,
                           padding: const EdgeInsets.symmetric(
-                              vertical: 5, horizontal: 18),
+                            vertical: 5,
+                            horizontal: 18,
+                          ),
+                        ),
+                        SizedBox(height: 10),
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.center,
+                          children: [
+                            Radio<String>(
+                              value: 'mr',
+                              activeColor: Colors.deepOrange                              ,
+                              groupValue: langProvider.locale.languageCode,
+                              onChanged: (value) {
+                                context.read<LanguageProvider>().changeLanguage(
+                                  value!,
+                                );
+                              },
+                            ),
+                            const Text('मराठी'),
+
+                            SizedBox(width: 30),
+
+                            Radio<String>(
+                              value: 'en',
+                              activeColor: Colors.deepOrange,
+                              groupValue: langProvider.locale.languageCode,
+                              onChanged: (value) {
+                                context.read<LanguageProvider>().changeLanguage(
+                                  value!,
+                                );
+                              },
+                            ),
+                            const Text('English'),
+                          ],
+                        ),
+                        SizedBox(height: 10),
+                        Text(
+                          'Latest Version : 1.5 Date: 20/11/2025 11:23:48 am',
+                          style: TextStyle(fontSize: 11),
                         ),
                       ],
                     ),
@@ -572,5 +669,4 @@ class _LoginScreenState extends State<LoginScreen> {
       ),
     );
   }
-
 }

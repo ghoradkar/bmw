@@ -2,15 +2,24 @@ import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:mpcb_bio_waste/CBWTF/apiservice.dart';
+import 'package:mpcb_bio_waste/CBWTF/search_assigned_vehicle.dart';
 import 'package:mpcb_bio_waste/CBWTF_Disposal/filter.dart';
 import 'package:mpcb_bio_waste/CBWTF_Reception/view_details_after_Scan.dart';
 import 'package:mpcb_bio_waste/Global/size_config.dart';
 import 'package:mpcb_bio_waste/Global/url.dart';
+import 'package:mpcb_bio_waste/authentication/forget_password.dart';
+import 'package:mpcb_bio_waste/authentication/update_password.dart';
+import 'package:mpcb_bio_waste/need_help/need_help.dart';
+import 'package:mpcb_bio_waste/profile/my_profile.dart';
+import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../CBWTF_Disposal/disposal_overall_colection.dart';
 import '../HCF/filter.dart';
+import '../Localization/app_localization.dart';
 import '../authentication/logout.dart';
+import '../localization/provider.dart';
+import '../vehicle_user/search_pickedup_Details.dart';
 import 'app_routes.dart';
 
 class AppDrawer extends StatefulWidget {
@@ -51,7 +60,7 @@ class _AppDrawerState extends State<AppDrawer> {
 
     final routeMap = {
       'HCF User': AppRoutes.hcf_biowasteScreen,
-      'CBWT User': AppRoutes.nearby_hcf,
+      'CBWT Assign User': AppRoutes.nearby_hcf,
       //  'CBWT User': AppRoutes.nearby_hcf,
       'CBWT Reception User': AppRoutes.vehicle_screen,
       //'Disposal User': AppRoutes.waste_received_byvehicle,
@@ -77,15 +86,18 @@ class _AppDrawerState extends State<AppDrawer> {
   Future<void> _loadUserInfo() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
-      username = prefs.getString('userRole') ?? 'Guest';
+      username = prefs.getString('username') ?? 'Guest';
       userRole= prefs.getString('userRole');
-      //email = prefs.getString('UserEmail') ?? 'guest@example.com';
+      email = prefs.getString('email') ?? 'guest@example.com';
     });
   }
 
   @override
   Widget build(BuildContext context) {
     SizeConfig().init(context);
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
+
     return Drawer(
 
       child: Container(
@@ -105,7 +117,16 @@ class _AppDrawerState extends State<AppDrawer> {
             children: [
               SizedBox(height: responsiveHeight(100),),
 
-      Center(
+      GestureDetector(
+          onTap:(){
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                  builder: (context) =>ProfileScreen()
+              ),
+            );
+          },
+          child:Center(
         child: Container(
           height: 50,
           width: 50,
@@ -120,7 +141,7 @@ class _AppDrawerState extends State<AppDrawer> {
                   color: Colors.white),
               color: Colors.grey.shade400),
         ),
-      ),
+      )),
               SizedBox(height: responsiveHeight(30),),
 
       Center(
@@ -128,6 +149,11 @@ class _AppDrawerState extends State<AppDrawer> {
             username == null ? '' : username!,
             style: TextStyle(color: Colors.white,fontSize: 14),
           )),
+              Center(
+                  child: Text(
+                    email == null ? '' : email!,
+                    style: TextStyle(color: Colors.white,fontSize: 14),
+                  )),
       SizedBox(
         height: 40,
       ),
@@ -145,7 +171,7 @@ class _AppDrawerState extends State<AppDrawer> {
                 color: Colors.white,
               ),
               title: Text(
-                  'Dashboard',
+                  userRole== 'HCF User'?t.translate('add_waste'):userRole== 'CBWT Assign User'?t.translate('assign_vehicle'):userRole=='Vehicle  User'?t.translate('view_assigned_hcf'):userRole=='CBWT Reception User'?t.translate('list_of_vehicle'):userRole=='Disposal User'?t.translate('received_waste'):'Dashboard',
                   style: TextStyle(
                       color: Colors.white,
                       fontSize: 15)),
@@ -156,13 +182,13 @@ class _AppDrawerState extends State<AppDrawer> {
                 // ...
               },
             ),
-            username== 'Disposal User'? ListTile(
+            userRole== 'Disposal User'? ListTile(
               leading: Icon(
                 Icons.receipt_long,
                 color: Colors.white,
               ),
               title: Text(
-                  'Search Disposal Data',
+                  t.translate('search_disposal_data'),
                   style: TextStyle(
                       color: Colors.white,
                       fontSize: 15)),
@@ -178,13 +204,57 @@ class _AppDrawerState extends State<AppDrawer> {
                 // ...
               },
             ):SizedBox(),
-           username== 'HCF User'? ListTile(
+            userRole== 'Vehicle  User'? ListTile(
               leading: Icon(
                 Icons.receipt_long,
                 color: Colors.white,
               ),
               title: Text(
-                  'Search HCF Data',
+                  t.translate('search_pickedup_details'),
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15)),
+              onTap: () {
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) =>SearchPickedupDetails()
+                  ),
+                );
+                // Update the state of the app.
+                // ...
+              },
+            ):SizedBox(),
+            userRole== 'CBWT Assign User'? ListTile(
+              leading: Icon(
+                Icons.person_outline,
+                color: Colors.white,
+              ),
+              title: Text(
+                  t.translate('search_assigned_vehicle'),
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15)),
+              onTap: () {
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                      builder: (context) =>SearchAssignedVehicle()
+                  ),
+                );
+                // Update the state of the app.
+                // ...
+              },
+            ):SizedBox(),
+           userRole== 'HCF User'? ListTile(
+              leading: Icon(
+                Icons.receipt_long,
+                color: Colors.white,
+              ),
+              title: Text(
+                  t.translate('search_generated_bmw'),
                   style: TextStyle(
                       color: Colors.white,
                       fontSize: 15)),
@@ -200,13 +270,13 @@ class _AppDrawerState extends State<AppDrawer> {
                 // ...
               },
             ):SizedBox(),
-        username=='CBWT Reception User'? ListTile(
+        userRole=='CBWT Reception User'? ListTile(
           leading: Icon(
             Icons.receipt,
             color: Colors.white,
           ),
           title: Text(
-              'View Details',
+              t.translate('search_received_data'),
               style: TextStyle(
                   color: Colors.white,
                   fontSize: 15)),
@@ -243,11 +313,60 @@ class _AppDrawerState extends State<AppDrawer> {
             ListTile(
               leading: Icon(
                 Icons
+                    .lock_outline,
+                color: Colors.white,
+              ),
+              title: Text(
+                  t.translate('update_password'),
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15)),
+              onTap: () {
+
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>UpdatePassword(),
+                  ),
+                );
+
+                // Update the state of the app.
+                // ...
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                Icons
+                    .help_outline,
+                color: Colors.white,
+              ),
+              title: Text(
+                  t.translate('need_help'),
+                  style: TextStyle(
+                      color: Colors.white,
+                      fontSize: 15)),
+              onTap: () {
+                Navigator.push(
+                  context,
+                  MaterialPageRoute(
+                    builder: (context) =>DocumentUploadScreen(),
+                  ),
+                );
+
+
+
+                // Update the state of the app.
+                // ...
+              },
+            ),
+            ListTile(
+              leading: Icon(
+                Icons
                     .logout,
                 color: Colors.white,
               ),
               title: Text(
-                  'Logout',
+                  t.translate('logout'),
                   style: TextStyle(
                       color: Colors.white,
                       fontSize: 15)),
@@ -259,11 +378,11 @@ class _AppDrawerState extends State<AppDrawer> {
                 // ...
               },
             ),
-            SizedBox(height: responsiveHeight(310),),
+            SizedBox(height: responsiveHeight(50),),
             ListTile(
 
               title: Text(
-                  'Version $appVersion',
+                  '${t.translate('version') ?? 'Version'} $appVersion',
                   style: TextStyle(
                       color: Colors.white,
                       fontSize: 15)),

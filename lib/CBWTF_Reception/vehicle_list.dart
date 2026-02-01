@@ -13,6 +13,8 @@ import '../Global/app_routes.dart';
 import '../Global/constant.dart';
 import '../Global/size_config.dart';
 import '../Global/url.dart';
+import '../Localization/app_localization.dart';
+import '../localization/provider.dart';
 import '../network/network_aware.dart';
 import '../network/network_status.dart';
 import '../network/offline.dart';
@@ -90,6 +92,8 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
   @override
   Widget build(BuildContext context) {
     SizeConfig().init(context);
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
     return StreamProvider<NetworkStatus>(
       create: (context) =>
       NetworkStatusService().networkStatusController.stream,
@@ -105,7 +109,7 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
           /// Custom Gradient AppBar
           mAppBar(
             onLeadingIconClick: () => Navigator.pop(context),
-            scTitle: 'Vehicle List',
+            scTitle: t.translate('vehicle_list'),
             centerTile: true,
             leadingWidget: Builder(
               builder: (context) => IconButton(
@@ -152,7 +156,7 @@ class _VehicleListScreenState extends State<VehicleListScreen> {
                           text: TextSpan(
                             children: [
                               TextSpan(
-                                text: 'Vehicle Number : ',
+                                text: '${t.translate('vehicle_number')} : ',
                                 style: TextStyle(
                                   fontWeight: FontWeight.bold,
                                   color: Colors.black87,

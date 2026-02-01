@@ -14,6 +14,8 @@ import '../Global/app_bar.dart';
 import '../Global/app_routes.dart';
 import '../Global/constant.dart';
 import '../Global/size_config.dart';
+import '../Localization/app_localization.dart';
+import '../localization/provider.dart';
 import '../network/network_aware.dart';
 import '../network/network_status.dart';
 import '../network/offline.dart'; // for Future
@@ -36,7 +38,7 @@ class _AssignedHCFScreenState extends State<AssignedHCFScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('Token') ?? '';
-      final username = prefs.getString('Username');
+      final username = prefs.getString('username');
 
       final response = await http.get(
         Uri.parse('${baseurl}${GET_BIO_WASTE_DATA}$username'),
@@ -120,6 +122,8 @@ class _AssignedHCFScreenState extends State<AssignedHCFScreen> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
     return StreamProvider<NetworkStatus>(
         create: (context) =>
         NetworkStatusService().networkStatusController.stream,
@@ -133,7 +137,7 @@ class _AssignedHCFScreenState extends State<AssignedHCFScreen> {
             mAppBar(
             onLeadingIconClick: () {Navigator.of(context).popAndPushNamed(AppRoutes.vehicle_nearby_hcf);
               },
-    scTitle: 'Assigned HCF',
+    scTitle:  t.translate('list_assigned_hcf'),
     centerTile: true,
     showLeading: true,
     ),
@@ -154,74 +158,168 @@ class _AssignedHCFScreenState extends State<AssignedHCFScreen> {
     topLeft: Radius.circular(40),
     ),
     ),
-    child:SingleChildScrollView(child:
-    _isLoading?Center(child:CircularProgressIndicator(color: kPrimaryColor,) ,):
-    _tableData.isEmpty||_tableData==null?Datanotfound():Table(
-      border: TableBorder.all(color: Colors.grey.shade400, width: 1,
-      borderRadius: BorderRadius.all(Radius.circular(10)), ),
+      child: Column(
+        children: [
 
-      columnWidths: const {
-        0: FlexColumnWidth(1),
-        1: FlexColumnWidth(2),
-        2: FlexColumnWidth(3),
-        3: FlexColumnWidth(1.5),
-        4: FlexColumnWidth(1.5),
-        5: FlexColumnWidth(1.5),
-      },
-      children: [
-        TableRow(
-          decoration: const BoxDecoration(
-            borderRadius: BorderRadius.only(topLeft: Radius.circular(10),topRight: Radius.circular(10)),
+          /// Loading
+          if (_isLoading)
+            const Expanded(
+              child: Center(
+                child: CircularProgressIndicator(color: kPrimaryColor),
+              ),
+            )
 
-            gradient: LinearGradient(
+          /// No Data
+          else if (_tableData.isEmpty)
+            Expanded(
+              child: Center(
+                child: Datanotfound(),
+              ),
+            )
 
-              colors: [kPrimaryColor, kPrimaryDarkColor],
+          /// Table
+          else
+            Expanded(
+              child: SingleChildScrollView(
+                child: Table(
+                  border: TableBorder.all(
+                    color: Colors.grey.shade400,
+                    width: 1,
+                    borderRadius: const BorderRadius.all(Radius.circular(10)),
+                  ),
+                  columnWidths: const {
+                    0: FlexColumnWidth(1),
+                    1: FlexColumnWidth(2),
+                    2: FlexColumnWidth(3),
+                    3: FlexColumnWidth(1.5),
+                    4: FlexColumnWidth(1.5),
+                    5: FlexColumnWidth(1.5),
+                  },
+                  children: [
+                    /// Header
+                    TableRow(
+                      decoration: BoxDecoration(
+                        gradient: LinearGradient(
+                          colors: [kPrimaryColor, kPrimaryDarkColor],
+                        ),
+                      ),
+                      children: [
+                        _TableHeaderCell( t.translate('srno')),
+                        _TableHeaderCell( t.translate('date'),),
+                        _TableHeaderCell( t.translate('hcf_name'),),
+                        _TableHeaderCell( t.translate('total_bags'),),
+                        _TableHeaderCell( t.translate('total_waste'),),
+                        _TableHeaderCell( t.translate('action'),),
+                      ],
+                    ),
+
+                    /// Rows
+                    ...List.generate(_tableData.length, (index) {
+                      final row = _tableData[index];
+                      return TableRow(
+                        children: [
+                          _TableCell("${index + 1}"),
+                          _TableCell(row['date']),
+                          _TableCell(row['name']),
+                          _TableCell("${row['bags']}"),
+                          _TableCell("${row['waste']}", isBold: true),
+                          GestureDetector(
+                            onTap: () {
+                              Navigator.push(
+                                context,
+                                MaterialPageRoute(
+                                  builder: (context) =>
+                                      BioWasteDetailScreen(_tableData[index]),
+                                ),
+                              );
+                            },
+                            child: const Padding(
+                              padding: EdgeInsets.all(10),
+                              child: Icon(
+                                Icons.remove_red_eye,
+                                color: Colors.lightBlue,
+                                size: 20,
+                              ),
+                            ),
+                          ),
+                        ],
+                      );
+                    }),
+                  ],
+                ),
+              ),
             ),
-          ),
-          children: const [
-            _TableHeaderCell("Sr.\nNo."),
-            _TableHeaderCell("Date"),
-            _TableHeaderCell("HCF Name"),
-            _TableHeaderCell("Total\nno. of Bags"),
-            _TableHeaderCell("Total Waste\nGenerated"),
-            _TableHeaderCell("Action"),
-          ],
-        ),
-        ...List.generate(_tableData.length, (index) {
-          final row = _tableData[index];
-          print(row);
-          return TableRow(
-            children: [
-              _TableCell("${index + 1}"),
-              _TableCell(row['date']),
-              _TableCell(row['name']),
-              _TableCell("${row['bags']}"),
-              _TableCell("${row['waste']}", isBold: true),
-          GestureDetector(
-          onTap: (){
-            print(_tableData[index]);
-          Navigator.push(
-          context,
-          MaterialPageRoute(
-          builder: (context) => BioWasteDetailScreen(_tableData[index]),
-          ),
-          );
-          },
-          child:Padding(
-          padding: EdgeInsets.all(10),
-          child: Icon(
-          Icons.remove_red_eye,
-          color: Colors.lightBlue,
-          size: 20,
-          ),
-          ))
-            ],
-          );
-        }),
-      ],
-    ),
+        ],
+      ),
 
-    )))])), offlineChild: Offline()));
+      // child:SingleChildScrollView(child:
+    // _isLoading?Center(child:CircularProgressIndicator(color: kPrimaryColor,) ,):
+    // _tableData.isEmpty||_tableData==null?Datanotfound():Table(
+    //   border: TableBorder.all(color: Colors.grey.shade400, width: 1,
+    //   borderRadius: BorderRadius.all(Radius.circular(10)), ),
+    //
+    //   columnWidths: const {
+    //     0: FlexColumnWidth(1),
+    //     1: FlexColumnWidth(2),
+    //     2: FlexColumnWidth(3),
+    //     3: FlexColumnWidth(1.5),
+    //     4: FlexColumnWidth(1.5),
+    //     5: FlexColumnWidth(1.5),
+    //   },
+    //   children: [
+    //     TableRow(
+    //       decoration: const BoxDecoration(
+    //         borderRadius: BorderRadius.only(topLeft: Radius.circular(10),topRight: Radius.circular(10)),
+    //
+    //         gradient: LinearGradient(
+    //
+    //           colors: [kPrimaryColor, kPrimaryDarkColor],
+    //         ),
+    //       ),
+    //       children: const [
+    //         _TableHeaderCell("Sr.\nNo."),
+    //         _TableHeaderCell("Date"),
+    //         _TableHeaderCell("HCF Name"),
+    //         _TableHeaderCell("Total\nno. of Bags"),
+    //         _TableHeaderCell("Total Waste\nGenerated"),
+    //         _TableHeaderCell("Action"),
+    //       ],
+    //     ),
+    //     ...List.generate(_tableData.length, (index) {
+    //       final row = _tableData[index];
+    //       print(row);
+    //       return TableRow(
+    //         children: [
+    //           _TableCell("${index + 1}"),
+    //           _TableCell(row['date']),
+    //           _TableCell(row['name']),
+    //           _TableCell("${row['bags']}"),
+    //           _TableCell("${row['waste']}", isBold: true),
+    //       GestureDetector(
+    //       onTap: (){
+    //         print(_tableData[index]);
+    //       Navigator.push(
+    //       context,
+    //       MaterialPageRoute(
+    //       builder: (context) => BioWasteDetailScreen(_tableData[index]),
+    //       ),
+    //       );
+    //       },
+    //       child:Padding(
+    //       padding: EdgeInsets.all(10),
+    //       child: Icon(
+    //       Icons.remove_red_eye,
+    //       color: Colors.lightBlue,
+    //       size: 20,
+    //       ),
+    //       ))
+    //         ],
+    //       );
+    //     }),
+    //   ],
+    // ),
+
+    ))])), offlineChild: Offline()));
   }
 }
 

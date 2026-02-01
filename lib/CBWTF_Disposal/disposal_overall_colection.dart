@@ -16,7 +16,9 @@ import '../Global/dataNotFound.dart';
 import '../Global/images.dart';
 import '../Global/size_config.dart';
 import '../Global/url.dart';
+import '../Localization/app_localization.dart';
 import '../authentication/logout.dart';
+import '../localization/provider.dart';
 import '../network/network_aware.dart';
 import '../network/network_status.dart';
 import '../network/offline.dart';
@@ -54,7 +56,7 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
     fetchTableData();
   }
 
-  Future<void> SaveWaste() async {
+  Future<void> SaveWaste(t) async {
     setState(() => save = true);
 
     try {
@@ -142,7 +144,7 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
         ScaffoldMessenger.of(
           context,
         ).showSnackBar(SnackBar(content: Text(responseData['message'])));
-        showSuccessDialog(context);
+        showSuccessDialog(context,t);
       } else if (response.statusCode == 401) {
         AuthService().logout(context);
       } else {
@@ -298,6 +300,8 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
     return StreamProvider<NetworkStatus>(
         create: (context) =>
         NetworkStatusService().networkStatusController.stream,
@@ -318,7 +322,7 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
                     ),
                     showLeading: true,
                     //onLeadingIconClick: () => Navigator.pop(context),
-                    scTitle: 'Bio Waste Received By Vehicle',
+                    scTitle:t.translate('bmw_received_by_vehicle'),
                     centerTile: false,
                    // showLeading: true,
                   ),
@@ -348,7 +352,7 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
                           : data_not_found?Datanotfound():SingleChildScrollView(child:Column(
                         children: [
                           SizedBox(height: 20),
-                        _buildTable(),
+                        _buildTable(t),
                           SizedBox(height: 20),
                          // Spacer(),
                          //  save
@@ -365,7 +369,7 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
                                     vertical: 5,
                                     horizontal: 15,
                                   ),
-                                  text: 'Dispose',
+                                  text: t.translate('dispose'),
                                   onPressed: () {
                                     selectedRows.isEmpty?
                                         {  ScaffoldMessenger.of(context).showSnackBar(
@@ -517,7 +521,7 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
   //     ],
   //   );
   // }
-  Widget _buildTable() {
+  Widget _buildTable(t) {
     return Table(
       border: TableBorder.all(
         color: Colors.grey.shade400,
@@ -546,13 +550,12 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
             ),
           ),
           children: _tableHeaders([
-            "Sr.No",
-            "Vehicle No",
+    t.translate('srno'),
+            t.translate('vehicle_number'),
+            t.translate('reception_date'),
 
-            "Reception Date",
-
-            'Total No of Bags',
-            "Total Waste Generated",
+            t.translate('total_bags'),
+    t.translate('total_waste'),
 
             "Select",
           ]),
@@ -656,7 +659,7 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
     }
   }
 
-  void showSuccessDialog(BuildContext context) {
+  void showSuccessDialog(BuildContext context,t) {
     showDialog(
       context: context,
       barrierDismissible: false, // User must tap button
@@ -675,8 +678,8 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
                 const SizedBox(height: 24),
 
                 // Success Text
-                const Text(
-                  "Bio Waste Data\nadded successfully.",
+                 Text(
+                   t.translate('bmw_disposed'),
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
@@ -690,7 +693,7 @@ class _OverallDataCollectionState extends State<DisposalOverallCollection> {
                       vertical: 5,
                       horizontal: 15,
                     ),
-                    text: 'Ok',
+                    text:t.translate('ok'),
                     onPressed: () {
                       // Navigator.pop(context);
                       Navigator.pushAndRemoveUntil(

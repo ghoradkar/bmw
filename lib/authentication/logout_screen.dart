@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 import '../Global/app_bar.dart';
 import '../Global/app_button.dart';
 import '../Global/images.dart';
 import '../Global/size_config.dart';
+import '../Localization/app_localization.dart';
 import '../global/constant.dart';
+import '../localization/provider.dart';
 import 'logout.dart';
 
 class LogoutScreen extends StatefulWidget {
@@ -21,6 +24,8 @@ class LogoutScreenState extends State<LogoutScreen> {
   @override
   Widget build(BuildContext context) {
     SizeConfig().init(context);
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
 
     return Scaffold(
       backgroundColor: Colors.white,
@@ -35,7 +40,7 @@ class LogoutScreenState extends State<LogoutScreen> {
             children: [
               /// Custom Gradient AppBar
               mAppBar(
-                scTitle: 'Log Out',
+                scTitle:  t.translate('logout'),
                 centerTile: true,
 
                 showLeading: false,
@@ -78,7 +83,7 @@ class LogoutScreenState extends State<LogoutScreen> {
                                 vertical: 5,
                                 horizontal: 15,
                               ),
-                              text: 'Yes',
+                              text:  t.translate('yes'),
                               onPressed: (){
                                 final authService = AuthService();
                                 authService.logout(context);
@@ -93,7 +98,7 @@ class LogoutScreenState extends State<LogoutScreen> {
                                 vertical: 5,
                                 horizontal: 15,
                               ),
-                              text: 'No',
+                              text:  t.translate('no'),
                               onPressed: (){Navigator.pop(context);},
                               color: Colors.grey.shade400,
                             ),

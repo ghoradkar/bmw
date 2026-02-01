@@ -9,9 +9,12 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../Global/app_bar.dart';
 import '../Global/app_button.dart';
+import '../Global/app_dropdown.dart';
 import '../Global/constant.dart';
 import '../Global/size_config.dart';
 import '../Global/url.dart';
+import '../Localization/app_localization.dart';
+import '../localization/provider.dart';
 import '../network/network_aware.dart';
 import '../network/network_status.dart';
 import '../network/offline.dart';
@@ -28,11 +31,30 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
   bool isLoadingColor=true;
   List hcfList=[];
   String? selectedhcf;
+  List <Map<String,dynamic>>vehicleList=[];
+  Map<String,dynamic>? selectedVehicle;
   DateTimeRange? _selectedRange;
   List<dynamic> rows = [];
   String? hcfname;
   String? hcfcode;
+  bool _isLoading=false;
   bool datanotfound=false;
+  String formatDate(String? date) {
+    if (date == null || date.isEmpty) return '';
+
+    try {
+      // Parse the input date
+      DateTime parsedDate = DateTime.parse(date);
+
+      // Return in YYYY-MM-DD format
+      return '${parsedDate.year}-${parsedDate.month.toString().padLeft(2, '0')}-${parsedDate.day.toString().padLeft(2, '0')}';
+    } catch (e) {
+      print('Invalid date format: $date');
+      return '';
+    }
+  }
+
+
 
 
   Future<void> fetchHCFData() async {
@@ -61,23 +83,28 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
         'Accept': 'application/json ; charset=UTF-8',
         'Authorization': 'Bearer $token',
       };
-
+      final fromDate = formatDate(_selectedRange!.start.toString());
+      final toDate = formatDate(_selectedRange!.end.toString());
       final body = {
-        "fromDate": fromDateController.text,
-        "toDate": toDateController.text,
-        "hcfId": selectedhcf,
+
+          "userId": userId,
+          "scheduleFromDate": fromDate,
+          "scheduleToDate": toDate,
+          "vehicleNo": selectedVehicle!['vehicleNo']
+
       };
+
 
 
       print("Request Body: ${jsonEncode(body)}");
 
       final response = await http.post(
-        Uri.parse('${baseurl}${FILTER_HCF_DATA}'),
+        Uri.parse('${baseurl}${FILTER_RECEPTION_DATA}'),
         headers: headers,
         body: jsonEncode(body),
       );
 
-      print("API URL: ${baseurl}${FILTER_HCF_DATA}");
+      print("API URL: ${baseurl}${FILTER_RECEPTION_DATA}");
       print("Status Code: ${response.statusCode}");
       print("Response Body: ${response.body}");
 
@@ -88,6 +115,7 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
           rows = jsonResponse['data'];
           setState(() {
             rows;
+            print(rows);
            rows==[]||rows.isEmpty?datanotfound=true:datanotfound=false;
           });
 
@@ -135,62 +163,41 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
     }
   }
 
-  Future<void> GetHCFList() async {
-    setState(() {
-      isLoadingColor=true;
-    });
-    SharedPreferences prefs = await SharedPreferences.getInstance();
-    var token = prefs.getString('Token');
-    var userid= prefs.getString('UserId');
+
+  Future<void> fetchVehicle() async {
+    setState(() => _isLoading = true);
 
     try {
-      final headers = {
-        'Content-Type': 'application/json; charset=UTF-8',
-        'Accept': 'application/json ; charset=UTF-8',
-        'Authorization': 'Bearer $token',
-      };
-
-      final url = Uri.parse(
-        '${baseurl}${GET_HCF_LIST}$userid',
+      final prefs = await SharedPreferences.getInstance();
+      final token = prefs.getString('Token') ?? '';
+      final response = await http.get(
+        Uri.parse('${baseurl}${GET_VEHICLE_USERS}'),
+        headers: {
+          'Authorization': 'Bearer $token',
+          'Content-Type': 'application/json',
+        },
       );
-
-      print(url);
-      final response = await http.post(
-        url,
-        headers: headers,
-      );
-      print(response.body);
 
       if (response.statusCode == 200) {
-        final jsonResponse = jsonDecode(response.body);
-        hcfList = jsonResponse['data'];
-
-        setState(() {
-          hcfList;
-
-        });
-      } else {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('Authentication Error')),
-        );
-        print("HTTP error: ${response.statusCode}");
+        final res = jsonDecode(response.body);
+        vehicleList = List<Map<String, dynamic>>.from(res['data'] ?? []);
       }
-    } catch (e) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('Error fetching bio waste summary')),
-      );
-      print('Error fetching bio waste summary: $e');
+    } catch (_) {
+      _showError("Failed to fetch vehicles");
     }
 
-    setState(() {
-      isLoadingColor = false;
-    });
+    setState(() => _isLoading = false);
+  }  void _showError(String msg) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(content: Text(msg), backgroundColor: Colors.red),
+    );
   }
 
   @override
   void initState() {
     super.initState();
-    GetHCFList();
+
+    fetchVehicle();
 
   }
   void _pickDateRange() async {
@@ -212,6 +219,8 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
     return StreamProvider<NetworkStatus>(
         create: (context) =>
         NetworkStatusService().networkStatusController.stream,
@@ -225,7 +234,7 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
           /// Custom Gradient AppBar
           mAppBar(
           onLeadingIconClick: () => Navigator.pop(context),
-    scTitle: 'View Details',
+    scTitle: t.translate('view_details'),
     centerTile: false,
     showLeading: true,
             showActions: true,
@@ -254,7 +263,7 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
     child: SingleChildScrollView(
         child: Padding(
           padding: const EdgeInsets.all(10),
-          child: isLoading?Center(child: CircularProgressIndicator(color: kPrimaryColor,),) :datanotfound?
+          child: isLoading || _isLoading?Center(child: CircularProgressIndicator(color: kPrimaryColor,),) :datanotfound?
           SizedBox(
               height: 600,width: 500,
               child:Datanotfound()):Column(
@@ -270,60 +279,84 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
                   child: Column(
                     children: [
                       /// HCF name
-                      DropdownButtonFormField<String>(
+                      // DropdownButtonFormField<String>(
+                      //
+                      //   icon: const Icon(Icons.keyboard_arrow_down, color:kPrimaryColor),
+                      //   decoration: InputDecoration(
+                      //     label: RichText(
+                      //       text: const TextSpan(
+                      //         text: 'Name Of HCF',
+                      //         style: TextStyle(fontSize: 12, color: Colors.black),
+                      //         children: [
+                      //
+                      //         ],
+                      //       ),
+                      //     ),
+                      //
+                      //     hintText: 'Select',
+                      //     hintStyle: TextStyle(color: kBlackColor.withOpacity(0.2)),
+                      //     enabledBorder: OutlineInputBorder(
+                      //       borderRadius: BorderRadius.circular(12),
+                      //       borderSide: BorderSide(color: kBlackColor.withOpacity(0.3)),
+                      //     ),
+                      //     border: OutlineInputBorder(
+                      //       borderRadius: BorderRadius.circular(12),
+                      //     ),
+                      //   ),
+                      //   value:selectedhcf,
+                      //   items: hcfList.map((item) {
+                      //     return DropdownMenuItem<String>(
+                      //
+                      //
+                      //       value: item['hcfId'].toString(),
+                      //       child: Text(
+                      //         item['hcfName'],
+                      //         style: const TextStyle(fontSize: 10),
+                      //       ),
+                      //     );
+                      //   }).toList(),
+                      //     onChanged: (val) {
+                      //       setState(() {
+                      //         selectedhcf = val;
+                      //
+                      //         // Safely get the selected item from the list
+                      //         var result = hcfList.firstWhere(
+                      //               (element) => element['hcfId'].toString() == selectedhcf,
+                      //           orElse: () => {}, // return empty map if not found
+                      //         );
+                      //         hcfname=result['hcfName'];
+                      //         hcfcode=result['hcfCode'];
+                      //
+                      //
+                      //         print('Selected HCF Details: $result');
+                      //       });
+                      //     }
+                      //
+                      // ),
+                      InkWell(
+                          onTap: () {
+                            _openVehicleBottomSheet(context,t);
+                          },
+                          child: IgnorePointer(
+                              child: Container(
+                                decoration: BoxDecoration(
+                                  borderRadius: BorderRadius.circular(14),
+                                  color: Colors.grey.shade200,
+                                ),
 
-                        icon: const Icon(Icons.keyboard_arrow_down, color:kPrimaryColor),
-                        decoration: InputDecoration(
-                          label: RichText(
-                            text: const TextSpan(
-                              text: 'Name Of HCF',
-                              style: TextStyle(fontSize: 12, color: Colors.black),
-                              children: [
-
-                              ],
-                            ),
-                          ),
-
-                          hintText: 'Select',
-                          hintStyle: TextStyle(color: kBlackColor.withOpacity(0.2)),
-                          enabledBorder: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                            borderSide: BorderSide(color: kBlackColor.withOpacity(0.3)),
-                          ),
-                          border: OutlineInputBorder(
-                            borderRadius: BorderRadius.circular(12),
-                          ),
+                                child:validatedApiDropdown(
+                                  color: Colors.grey.shade500,
+                                  hint: t.translate('assign_vehicle'),
+                                  value: selectedVehicle,
+                                  items: vehicleList,
+                                  displayKey: "vehicleNo",
+                                  icon: Icons.fire_truck_outlined,
+                                  errorText: "Please select Vehicle",
+                                  onChanged: (v) {}, // handled via bottom sheet
+                                ),
+                              )),
                         ),
-                        value:selectedhcf,
-                        items: hcfList.map((item) {
-                          return DropdownMenuItem<String>(
 
-
-                            value: item['hcfId'].toString(),
-                            child: Text(
-                              item['hcfName'],
-                              style: const TextStyle(fontSize: 10),
-                            ),
-                          );
-                        }).toList(),
-                          onChanged: (val) {
-                            setState(() {
-                              selectedhcf = val;
-
-                              // Safely get the selected item from the list
-                              var result = hcfList.firstWhere(
-                                    (element) => element['hcfId'].toString() == selectedhcf,
-                                orElse: () => {}, // return empty map if not found
-                              );
-                              hcfname=result['hcfName'];
-                              hcfcode=result['hcfCode'];
-
-
-                              print('Selected HCF Details: $result');
-                            });
-                          }
-
-                      ),
                       SizedBox(height: 16),
 
                       /// Date fields
@@ -338,7 +371,7 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
                               style: TextStyle(fontSize: 12),
 
                               decoration: InputDecoration(
-                                labelText: "From Date",
+                                labelText: t.translate('from_date'),
                                 labelStyle: TextStyle(fontSize: 12),
 
                                 prefixIcon: Icon(Icons.calendar_month,color: kPrimaryColor,),
@@ -361,7 +394,7 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
                               onTap: _pickDateRange,
 
                               decoration: InputDecoration(
-                                labelText: "To Date",
+                                labelText: t.translate('to_date'),
                                 labelStyle: TextStyle(fontSize:12),
                                 prefixIcon: Icon(Icons.calendar_month,color: kPrimaryColor,),
                                 enabledBorder: OutlineInputBorder(
@@ -393,12 +426,13 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
                                 vertical: 5,
                                 horizontal: 15,
                               ),
-                              text: 'Reset',
+                              text: t.translate('reset'),
                               onPressed: (){
                                 setState(() {
                                   toDateController.clear();
                                   fromDateController.clear();
                                   selectedhcf=null;
+                                  selectedVehicle!.clear();
 
                                 });
                               },
@@ -412,7 +446,7 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
                                 vertical: 5,
                                 horizontal: 15,
                               ),
-                              text: 'Search',
+                              text:t.translate('search'),
                               onPressed: () {
                                 setState(() {
 
@@ -441,8 +475,8 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
-                    Text(hcfname!, style: TextStyle(fontWeight: FontWeight.bold)),
-                    Text("HCF Code : $hcfcode"),
+                   // Text(hcfname!, style: TextStyle(fontWeight: FontWeight.bold)),
+                    Text("${t.translate('vehicle_number')} : ${selectedVehicle!['vehicleNo']}"),
                   ],
                 ),
               ):SizedBox(),
@@ -452,13 +486,13 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
               /// Table
               rows.isNotEmpty?Table(
                 columnWidths: const {
-                  0: FixedColumnWidth(5),
+                  0: FixedColumnWidth(30),
                   1: FlexColumnWidth(3),
                   2: FlexColumnWidth(2),
                   3: FlexColumnWidth(2),
                   4: FlexColumnWidth(2),
                   5: FlexColumnWidth(2),
-                  6: FixedColumnWidth(30),
+                //  6: FixedColumnWidth(30),
                 },
                 border: TableBorder.all(color: Colors.grey.shade300,
                 borderRadius: BorderRadius.all(Radius.circular(10))),
@@ -467,29 +501,32 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
                   TableRow(
                     decoration: BoxDecoration(color: Colors.grey,borderRadius: BorderRadius.only(topLeft: Radius.circular(10),
                     topRight: Radius.circular(10))),
-                    children: const [
-                      SizedBox(),
+                    children:  [
                       Padding(
                         padding: EdgeInsets.all(8),
-                        child: Text("Barcode", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,fontSize: 10)),
+                        child: Text(t.translate('srno'), style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,fontSize: 10)),
                       ),
                       Padding(
                         padding: EdgeInsets.all(8),
-                        child: Text("Quantity\nby HCF", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,fontSize: 10)),
+                        child: Text(t.translate('cbwtf_pickedup_Date'), style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,fontSize: 10)),
                       ),
                       Padding(
                         padding: EdgeInsets.all(8),
-                        child: Text("Quantity\nOf Vehicle", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,fontSize: 10)),
+                        child: Text(t.translate('hcf_code'), style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,fontSize: 10)),
                       ),
                       Padding(
                         padding: EdgeInsets.all(8),
-                        child: Text("Received\nby CBWTF", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,fontSize: 10)),
+                        child: Text(t.translate('hcf_name'), style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,fontSize: 10)),
                       ),
                       Padding(
                         padding: EdgeInsets.all(8),
-                        child: Text("Difference\nin Quantity", style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,fontSize: 10)),
+                        child: Text(t.translate('total_weight'), style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,fontSize: 10)),
                       ),
-                      SizedBox(),
+                      Padding(
+                        padding: EdgeInsets.all(8),
+                        child: Text(t.translate('vehicle_number'), style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold,fontSize: 10)),
+                      ),
+                      
                     ],
                   ),
 
@@ -499,16 +536,15 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
                     TableRow(
                       decoration: BoxDecoration(borderRadius:BorderRadius.all(Radius.circular(10))),
                       children: [
-                        Container(
-                          decoration: BoxDecoration(color:  _getColorFromType(row['colourType']??''),
-                          borderRadius: BorderRadius.all(Radius.circular(15))),
-                            height: 70, ),
-                        Padding(padding: EdgeInsets.all(8), child: Text(row['barcodeNo']??'',style: TextStyle(fontSize: 11,))),
+                        Padding(
+                            padding: EdgeInsets.all(8),
+                            child: Text('${rows.indexOf(row) + 1}', style: TextStyle(fontSize: 9))),
+                        Padding(padding: EdgeInsets.all(8), child: Text(row['wasteQntyDateStr']??'',style: TextStyle(fontSize: 11,))),
+                        Padding(padding: EdgeInsets.all(8), child: Text(row['hcfCode'].toString()??'0',style: TextStyle(fontSize: 11,))),
+                        Padding(padding: EdgeInsets.all(8), child: Text(row['hcfName'].toString()??'0',style: TextStyle(fontSize: 11,))),
                         Padding(padding: EdgeInsets.all(8), child: Text(row['totalQuantityBagKg'].toString()??'0',style: TextStyle(fontSize: 11,))),
-                        Padding(padding: EdgeInsets.all(8), child: Text(row['puckupQty'].toString()??'0',style: TextStyle(fontSize: 11,))),
-                        Padding(padding: EdgeInsets.all(8), child: Text(row['pickupTotalQuantityBagCbwtfKg'].toString()??'0',style: TextStyle(fontSize: 11,))),
-                        Padding(padding: EdgeInsets.all(8), child: Text(row['differenceInQtyCbwtf'].toString()??'0',style: TextStyle(fontSize: 11,))),
-                        Icon(Icons.check_circle, color: Colors.green,size: 20,),
+                        Padding(padding: EdgeInsets.all(8), child: Text(row['vehicleNo'].toString()??'0',style: TextStyle(fontSize: 11,))),
+                        //Icon(Icons.check_circle, color: Colors.green,size: 20,),
                       ],
                     ),
                 ],
@@ -518,5 +554,69 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
         ),
       ),
     ))])), offlineChild: Offline()));
+  }
+  void _openVehicleBottomSheet(BuildContext context,t) {
+    showModalBottomSheet(
+      context: context,
+      isScrollControlled: true, // IMPORTANT
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.vertical(top: Radius.circular(16)),
+      ),
+      builder: (_) {
+        return SizedBox(
+          height: MediaQuery.of(context).size.height * 0.6, // control height
+          child: Column(
+            children: [
+              const SizedBox(height: 10),
+
+              // Drag handle
+              Container(
+                width: 50,
+                height: 5,
+                decoration: BoxDecoration(
+                  color: Colors.grey.shade400,
+                  borderRadius: BorderRadius.circular(10),
+                ),
+              ),
+
+              const SizedBox(height: 16),
+
+          Text(
+            t.translate('select_vehicle')      ,
+                style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
+              ),
+
+              const SizedBox(height: 10),
+              const Divider(),
+
+              // ✅ ONLY ListView scrolls
+              Expanded(
+                child: ListView.separated(
+                  itemCount: vehicleList.length,
+                  separatorBuilder: (_, __) => const Divider(height: 1),
+                  itemBuilder: (context, index) {
+                    final vehicle = vehicleList[index];
+
+                    return ListTile(
+                      leading: const Icon(Icons.fire_truck_outlined),
+                      title: Text(vehicle["vehicleNo"] ?? "-"),
+                      trailing: selectedVehicle == vehicle
+                          ? const Icon(Icons.check_circle, color: Colors.green)
+                          : null,
+                      onTap: () {
+                        setState(() {
+                          selectedVehicle = vehicle;
+                        });
+                        Navigator.pop(context);
+                      },
+                    );
+                  },
+                ),
+              ),
+            ],
+          ),
+        );
+      },
+    );
   }
 }

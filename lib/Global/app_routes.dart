@@ -68,7 +68,7 @@ class AppRoutes {
           );
         case forgot_password:
           return MaterialPageRoute(
-            builder: (_) => ForgotPassword({}),
+            builder: (_) => ResetPasswordScreen(),
           );
 
         case hcf_biowasteScreen:

@@ -3,21 +3,25 @@ import 'dart:convert';
 import 'dart:typed_data';
 
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:mpcb_bio_waste/Global/constant.dart';
 import 'package:mpcb_bio_waste/Global/images.dart';
 import 'package:mpcb_bio_waste/Global/size_config.dart';
 import 'package:mpcb_bio_waste/HCF/table.dart';
+import 'package:mpcb_bio_waste/Localization/app_localization.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import '../Global/AppDrawer.dart';
 import '../Global/app_bar.dart';
 import '../Global/app_button.dart';
+import '../Global/app_dialog.dart';
 import '../Global/app_routes.dart';
 import '../Global/app_textfield.dart';
 import '../Global/url.dart';
+import '../localization/provider.dart';
 import '../network/network_aware.dart';
 import '../network/network_status.dart';
 import '../network/offline.dart';
@@ -37,6 +41,8 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
   final List<int> bagOptions = List.generate(20, (i) => i + 1);
   List<Map<String, dynamic>> selectedWasteEntries = [];
   Key dropdownKey = UniqueKey();
+  List<TextEditingController> quantityControllers = [];
+
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   void _onAddToBarcodeList({
     required int hcfWasteId,
@@ -80,7 +86,7 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
   }
 
 
-    Future<void> saveBioWasteLocally() async {
+    Future<void> saveBioWasteLocally(t) async {
       SharedPreferences prefs = await SharedPreferences.getInstance();
 
       // Load existing saved data
@@ -112,13 +118,26 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
       print(tableData);
 
 
-      _resetForm();
-      Navigator.push(
-        context,
-        MaterialPageRoute(
-          builder: (context) => BioWasteSummaryTable(tableData),
+
+      showDialog(
+        context: context,
+        barrierDismissible: false,
+        builder: (_) => SuccessDialog(
+          buttonText: t.translate('ok'),
+          message:  t.translate('bmw_data_add'),
+          onOk: () {
+           // Navigator.pop(context);
+            _resetForm();
+            Navigator.push(
+              context,
+              MaterialPageRoute(
+                builder: (context) => BioWasteSummaryTable(tableData),
+              ),
+            );
+          },
         ),
       );
+
     }
 
 
@@ -191,6 +210,7 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
               //=='Yellow'?Colors.yellow:selectedColor!.name=='Blue'?Colors.blue:selectedColor!.name=='Red'?Colors.red:Colors.white
               
         });
+
       }
       setState(() {
         selectedBags=null;
@@ -201,6 +221,17 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
 
       });
     }
+    quantityControllers = List.generate(
+      tableData.length,
+          (index) => TextEditingController(
+        text: tableData[index]['quantity'] == 0
+            ? ''
+            : tableData[index]['quantity'].toString(),
+      ),
+    );
+setState(() {
+
+});
   }
   Color? getColorFromCode(String code) {
     switch (code.toUpperCase()) {
@@ -250,9 +281,10 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context){
      SizeConfig().init(context);
-
+     final t = AppLocalizations.of(context);
+     final langProvider = context.watch<LanguageProvider>();
     return StreamProvider<NetworkStatus>(
         create: (context) =>
         NetworkStatusService().networkStatusController.stream,
@@ -265,7 +297,7 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
             children: [
             /// Custom Gradient AppBar
             mAppBar(
-            scTitle: 'HCF Bio Waste Data',
+            scTitle:  t.translate('hcf_data'),
             centerTile: true,
             leadingWidget: Builder(
               builder: (context) => IconButton(
@@ -314,8 +346,8 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
                       child: DropdownButtonFormField<ColorCategory>(
                         value: selectedColor,
                         icon: const Icon(Icons.keyboard_arrow_down_outlined),
-                        decoration: const InputDecoration(
-                          labelText: "Category",
+                        decoration:  InputDecoration(
+                          labelText:  t.translate('select_category'),
                           labelStyle: TextStyle(fontSize: 10, color: Colors.grey),
                           prefixIcon: Icon(Icons.menu, color: kPrimaryColor),
                           enabledBorder: OutlineInputBorder(
@@ -368,8 +400,8 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
                         key: dropdownKey,
                         icon: const Icon(Icons.keyboard_arrow_down_outlined),
                         value: selectedBags,
-                        decoration: const InputDecoration(
-                          labelText: "No. of Bags",
+                        decoration: InputDecoration(
+                          labelText:  t.translate('select_bags'),
                           labelStyle: TextStyle(
                             fontSize: 10,
                             color: Colors.grey,
@@ -428,7 +460,7 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
                       vertical: 10,
                     ),
                     decoration: BoxDecoration(
-                      color: Colors.white,
+                      color: Colors.grey.shade300,
                       borderRadius: BorderRadius.circular(10),
                       border: Border.all(color: Colors.grey.shade400),
                       boxShadow: [
@@ -450,8 +482,8 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
                         Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            const Text(
-                              "Date & Time",
+                             Text(
+                        t.translate('datetime'),
                               style: TextStyle(
                                 fontSize: 12,
                                 color: Colors.grey,
@@ -498,11 +530,11 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
                     colors: [Color(0xFF00B4DB), Color(0xFF0099CC)],
                   ),
                 ),
-                children: const [
-                  _TableHeaderCell("Bag No."),
-                        _TableHeaderCell("Category"),
-                        _TableHeaderCell("Weight (kg)"),
-                        _TableHeaderCell("Action"),
+                children:  [
+                  _TableHeaderCell( t.translate('bag_no')),
+                        _TableHeaderCell( t.translate('category'),),
+                        _TableHeaderCell( t.translate('weight'),),
+                        _TableHeaderCell( t.translate('action'),),
                 ],
               ),
 
@@ -541,43 +573,102 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
                         ],
                       ),
                     ),
+                    // Padding(
+                    //   padding: const EdgeInsets.all(8),
+                    //   child: TextFormField(
+                    //     enabled: saved?false:true,
+                    //     style: TextStyle(fontWeight: FontWeight.bold,fontSize: 12),
+                    //     initialValue:
+                    //     tableData[i]['quantity'] == 0
+                    //         ? ''
+                    //         : tableData[i]['quantity'].toString(),
+                    //     keyboardType: TextInputType.number,
+                    //     decoration: InputDecoration(
+                    //       contentPadding: const EdgeInsets.symmetric(
+                    //           horizontal: 10, vertical: 10),
+                    //       isDense: true,
+                    //       enabledBorder: OutlineInputBorder(
+                    //         borderRadius: BorderRadius.circular(8),
+                    //         borderSide:
+                    //         const BorderSide(color: Colors.grey),
+                    //       ),
+                    //       focusedBorder: OutlineInputBorder(
+                    //         borderRadius: BorderRadius.circular(8),
+                    //         borderSide:
+                    //         const BorderSide(color: Colors.blue),
+                    //       ),
+                    //       disabledBorder: OutlineInputBorder(
+                    //         borderRadius: BorderRadius.circular(8),
+                    //         borderSide:
+                    //         const BorderSide(color: Colors.grey),
+                    //       ),
+                    //     ),
+                    //     onChanged: (val) {
+                    //       tableData[i]['quantity'] =
+                    //           double.tryParse(val) ?? 0;
+                    //
+                    //     },
+                    //   ),
+                    // ),
                     Padding(
                       padding: const EdgeInsets.all(8),
                       child: TextFormField(
-                        enabled: saved?false:true,
-                        style: TextStyle(fontWeight: FontWeight.bold,fontSize: 12),
-                        initialValue:
-                        tableData[i]['quantity'] == 0
-                            ? ''
-                            : tableData[i]['quantity'].toString(),
-                        keyboardType: TextInputType.number,
+                        controller: quantityControllers[i],
+                        enabled: !saved,
+                        style: const TextStyle(fontWeight: FontWeight.bold, fontSize: 12),
+                        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+                        inputFormatters: [
+                          SixDigitDecimalFormatter(),
+                        ],
                         decoration: InputDecoration(
-                          contentPadding: const EdgeInsets.symmetric(
-                              horizontal: 10, vertical: 10),
+                          contentPadding:
+                          const EdgeInsets.symmetric(horizontal: 10, vertical: 10),
                           isDense: true,
                           enabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide:
-                            const BorderSide(color: Colors.grey),
+                            borderSide: const BorderSide(color: Colors.grey),
                           ),
                           focusedBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide:
-                            const BorderSide(color: Colors.blue),
+                            borderSide: const BorderSide(color: Colors.blue),
                           ),
                           disabledBorder: OutlineInputBorder(
                             borderRadius: BorderRadius.circular(8),
-                            borderSide:
-                            const BorderSide(color: Colors.grey),
+                            borderSide: const BorderSide(color: Colors.grey),
                           ),
                         ),
                         onChanged: (val) {
-                          tableData[i]['quantity'] =
-                              double.tryParse(val) ?? 0;
+                          final qty = double.tryParse(val) ?? 0;
 
+                          // ❌ Quantity > 999 check
+                          if (qty > 999) {
+                            showDialog(
+                              context: context,
+                              builder: (_) => AlertDialog(
+                                title: const Text("Invalid Quantity"),
+                                content:
+                                const Text("Quantity should be less than or equal to 999"),
+                                actions: [
+                                  TextButton(
+                                    onPressed: () => Navigator.pop(context),
+                                    child:  Text( t.translate('ok'),),
+                                  ),
+                                ],
+                              ),
+                            );
+
+                            // Clear field & data
+                            quantityControllers[i].clear();
+                            tableData[i]['quantity'] = 0;
+                            return;
+                          }
+
+                          // ✅ Valid quantity
+                          tableData[i]['quantity'] = qty;
                         },
                       ),
                     ),
+
 
                     Padding(
                       padding: const EdgeInsets.all(8),
@@ -605,7 +696,7 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
                 vertical: 5,
                 horizontal: 15,
               ),
-              text: 'Reset',
+              text:  t.translate('reset'),
               onPressed: () {
                 _resetForm();
                 tableData.clear();
@@ -623,11 +714,13 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
                 vertical: 5,
                 horizontal: 15,
               ),
-              text: 'Add',
+              text:  t.translate('add'),
               onPressed: () {
                 tableData.isNotEmpty || existingData.isNotEmpty?
 
-                {saveBioWasteLocally()}:
+                {saveBioWasteLocally(t)
+
+                }:
                     { ScaffoldMessenger.of(context).showSnackBar(
                       SnackBar(content: Text('Please Add waste'), backgroundColor: Colors.red),
                     )}
@@ -693,7 +786,7 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
     offlineChild: Offline()));
   }
 
-  void showSuccessDialog(BuildContext context) {
+  void showSuccessDialog(BuildContext context,t) {
     showDialog(
       context: context,
       barrierDismissible: false, // User must tap button
@@ -712,8 +805,8 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
                 const SizedBox(height: 24),
 
                 // Success Text
-                const Text(
-                  "Bio Waste Data\nadded successfully.",
+                 Text(
+                   t.translate('bmw_waste_add'),
                   textAlign: TextAlign.center,
                   style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500),
                 ),
@@ -727,7 +820,7 @@ class _AddBioWasteDataTabState extends State<AddBioWasteDataTab> {
                       vertical: 5,
                       horizontal: 15,
                     ),
-                    text: 'Ok',
+                    text: t.translate('ok'),
                     onPressed: () {
                       Navigator.pop(context);
                     },
@@ -762,5 +855,32 @@ class _TableHeaderCell extends StatelessWidget {
         ),
 
     );
+  }
+
+}
+class SixDigitDecimalFormatter extends TextInputFormatter {
+  @override
+  TextEditingValue formatEditUpdate(TextEditingValue oldValue,
+      TextEditingValue newValue,) {
+    final text = newValue.text;
+
+    // Allow empty
+    if (text.isEmpty) return newValue;
+
+    // Allow only numbers and one decimal
+    if (!RegExp(r'^\d*\.?\d*$').hasMatch(text)) {
+      return oldValue;
+    }
+
+    // Count digits excluding decimal
+    final digitCount = text
+        .replaceAll('.', '')
+        .length;
+
+    if (digitCount > 5) {
+      return oldValue;
+    }
+
+    return newValue;
   }
 }

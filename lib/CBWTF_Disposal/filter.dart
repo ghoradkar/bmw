@@ -16,7 +16,9 @@ import '../Global/dataNotFound.dart';
 import '../Global/images.dart';
 import '../Global/size_config.dart';
 import '../Global/url.dart';
+import '../Localization/app_localization.dart';
 import '../authentication/logout.dart';
+import '../localization/provider.dart';
 import '../network/network_aware.dart';
 import '../network/network_status.dart';
 import '../network/offline.dart';
@@ -102,7 +104,7 @@ class _Filter_disposalState extends State<Filter_disposal> {
     }
   }
 
-  Future<void> fetchTableData(date) async {
+  Future<void> fetchTableData() async {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('Token') ?? '';
@@ -111,22 +113,33 @@ class _Filter_disposalState extends State<Filter_disposal> {
 
       final UserId = prefs.getString('UserId');
       final today = DateTime.now().toString().substring(0, 10);
+      final fromDate = reformatDate(_selectedRange!.start.toString());
+      final toDate = reformatDate(_selectedRange!.end.toString());
+      final body = {
 
+
+"userId":UserId,
+        "scheduleFromDate": fromDate,
+        "scheduleToDate":toDate,
+
+
+      };
       //  print(widget.formattedList);
 
-      final response = await http.get(
+      final response = await http.post(
         Uri.parse(
-          '${baseurl}${GET_DISPOSAL_DATA}fromDate=$date&toDate=$date&userId=$UserId',
+          '${baseurl}${DISPOSAL_SEARCH}',
         ),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        //  body: jsonEncode(widget.formattedList.first)
+          body: jsonEncode(body)
       );
       print(
-        '${baseurl}${GET_DISPOSAL_DATA}fromDate=$date&toDate=$date&userId=$UserId',
+        '${baseurl}${DISPOSAL_SEARCH}',
       );
+      print(body);
       print(response.body);
 
       if (response.statusCode == 200) {
@@ -156,9 +169,30 @@ class _Filter_disposalState extends State<Filter_disposal> {
       debugPrint("Error fetching table data: $e");
     }
   }
+  DateTimeRange? _selectedRange;
+  TextEditingController fromDateController = TextEditingController();
+  TextEditingController toDateController = TextEditingController();
+  void _pickDateRange() async {
+    final DateTimeRange? result = await showDateRangePicker(
+      context: context,
+      firstDate: DateTime(2000),
+      lastDate: DateTime(2100),
+      initialDateRange: _selectedRange,
+    );
+
+    if (result != null) {
+      setState(() {
+        _selectedRange = result;
+        fromDateController.text=DateFormat('dd/MM/yyyy').format(_selectedRange!.start);
+        toDateController.text=DateFormat('dd/MM/yyyy').format(_selectedRange!.end);
+      });
+    }
+  }
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
     return StreamProvider<NetworkStatus>(
       create: (context) => NetworkStatusService().networkStatusController.stream,
       initialData: NetworkStatus.Online,
@@ -172,7 +206,7 @@ class _Filter_disposalState extends State<Filter_disposal> {
               mAppBar(
                 showLeading: true,
                 onLeadingIconClick: () => Navigator.pop(context),
-                scTitle: 'Search Disposal Data',
+                scTitle:  t.translate('search_disposal_data'),
                 centerTile: false,
               ),
 
@@ -209,31 +243,53 @@ class _Filter_disposalState extends State<Filter_disposal> {
                             child: Column(
                               children: [
 
-                                /// Date field
-                                TextFormField(
-                                  controller: DateController,
-                                  readOnly: true,
-                                  onTap: () {
-                                    _selectDate(context);
-                                  },
-                                  style: const TextStyle(fontSize: 12),
-                                  decoration: InputDecoration(
-                                    labelText: "Select Date",
-                                    labelStyle: const TextStyle(fontSize: 12),
-                                    prefixIcon: Icon(
-                                      Icons.calendar_month,
-                                      color: kPrimaryColor,
+                                Row(
+                                  children: [
+                                    Expanded(
+                                      child:TextFormField(
+                                        controller: fromDateController,
+                                        onTap: _pickDateRange,
+                                        style: TextStyle(fontSize: 12),
+
+                                        decoration: InputDecoration(
+                                          labelText:  t.translate('from_date'),
+                                          labelStyle: TextStyle(fontSize: 12),
+
+                                          prefixIcon: Icon(Icons.calendar_month,color: kPrimaryColor,),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(color: Colors.grey.shade400),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          focusedBorder:    OutlineInputBorder(
+                                            borderSide: BorderSide(color:kPrimaryColor),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                    enabledBorder: OutlineInputBorder(
-                                      borderSide:
-                                      BorderSide(color: Colors.grey.shade400),
-                                      borderRadius: BorderRadius.circular(6),
+                                    SizedBox(width: 16),
+                                    Expanded(
+                                      child: TextFormField(
+                                        controller: toDateController,
+                                        style: TextStyle(fontSize: 12),
+                                        onTap: _pickDateRange,
+
+                                        decoration: InputDecoration(
+                                          labelText:  t.translate('to_date'),
+                                          labelStyle: TextStyle(fontSize:12),
+                                          prefixIcon: Icon(Icons.calendar_month,color: kPrimaryColor,),
+                                          enabledBorder: OutlineInputBorder(
+                                            borderSide: BorderSide(color: Colors.grey.shade400),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                          focusedBorder:    OutlineInputBorder(
+                                            borderSide: BorderSide(color:kPrimaryColor),
+                                            borderRadius: BorderRadius.circular(6),
+                                          ),
+                                        ),
+                                      ),
                                     ),
-                                    focusedBorder: OutlineInputBorder(
-                                      borderSide: BorderSide(color: kPrimaryColor),
-                                      borderRadius: BorderRadius.circular(6),
-                                    ),
-                                  ),
+                                  ],
                                 ),
 
                                 const SizedBox(height: 16),
@@ -247,10 +303,11 @@ class _Filter_disposalState extends State<Filter_disposal> {
                                       child: AppButton(
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 5, horizontal: 15),
-                                        text: 'Reset',
+                                        text:  t.translate('reset'),
                                         onPressed: () {
                                           setState(() {
-                                            DateController.clear();
+                                            fromDateController.clear();
+                                            toDateController.clear();
                                           });
                                         },
                                         color: Colors.grey.shade400,
@@ -261,10 +318,10 @@ class _Filter_disposalState extends State<Filter_disposal> {
                                       child: AppButton(
                                         padding: const EdgeInsets.symmetric(
                                             vertical: 5, horizontal: 15),
-                                        text: 'Search',
+                                        text:  t.translate('search'),
                                         onPressed: () {
                                           setState(() {
-                                            fetchTableData(pickedDate.toString().substring(0,10));
+                                            fetchTableData();
                                             // fetchHCFData();
                                           });
                                         },
@@ -294,7 +351,7 @@ class _Filter_disposalState extends State<Filter_disposal> {
                             children: [
                               const SizedBox(height: 20),
                               rows.isEmpty?SizedBox():
-                              SingleChildScrollView(child:_buildTable(),)
+                              SingleChildScrollView(child:_buildTable(t),)
                               ],
                           ),
                       ],
@@ -311,7 +368,7 @@ class _Filter_disposalState extends State<Filter_disposal> {
   }
 
 
-  Widget _buildTable() {
+  Widget _buildTable(t) {
     return Table(
       border: TableBorder.all(
         color: Colors.grey.shade400,
@@ -340,13 +397,14 @@ class _Filter_disposalState extends State<Filter_disposal> {
             ),
           ),
           children: _tableHeaders([
-            "Sr.No",
-            "Vehicle No",
+            t.translate('srno'),
+            t.translate('vehicle_number'),
+            t.translate('reception_date'),
 
-            "Reception Date",
 
-            'Total No of Bags',
-            "Total Waste Generated",
+
+            t.translate('total_bags'),
+    t.translate('total_waste_disposed'),
           ]),
         ),
         for (int i = 0; i < rows.length; i++) _buildDataRow(rows[i], i),
@@ -362,6 +420,21 @@ class _Filter_disposalState extends State<Filter_disposal> {
       return 'Invalid date';
     }
   }
+  String reformatDate(String? date) {
+    if (date == null || date.isEmpty) return '';
+
+    try {
+      // Parse the input date
+      DateTime parsedDate = DateTime.parse(date);
+
+      // Return in YYYY-MM-DD format
+      return '${parsedDate.year}-${parsedDate.month.toString().padLeft(2, '0')}-${parsedDate.day.toString().padLeft(2, '0')}';
+    } catch (e) {
+      print('Invalid date format: $date');
+      return '';
+    }
+  }
+
 
   TableRow _buildDataRow(Map<String, dynamic> item, int index) {
     bool isSelected = selectedRows.contains(item);
@@ -372,7 +445,7 @@ class _Filter_disposalState extends State<Filter_disposal> {
         _tableCell("${index + 1}"),
 
         _tableCell(item['vehicleNo']),
-        _tableCell(formatDate(item['assignDateCbwtf'])),
+        _tableCell(formatDate(item['vehicleAssignDateStr'])),
 
         _tableCell(item['totalNoOfBags'].toString()),
         _tableCell(item['totalQuantityBagKg'].toString()),

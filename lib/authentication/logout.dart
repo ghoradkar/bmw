@@ -31,7 +31,7 @@ class AuthService {
    Future<void> logout(BuildContext context) async {
     try {
       SharedPreferences prefs = await SharedPreferences.getInstance();
-      var user = prefs.getString('Username');
+      var user = prefs.getString('username');
       var userId = prefs.getString('UserId');
 
       final uri = Uri.parse('$login_baseurl$LOGOUT');

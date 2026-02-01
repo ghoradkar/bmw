@@ -15,6 +15,8 @@ import '../Global/app_routes.dart';
 import '../Global/constant.dart';
 import '../Global/size_config.dart';
 import '../Global/url.dart';
+import '../Localization/app_localization.dart';
+import '../localization/provider.dart';
 import '../network/network_aware.dart';
 import '../network/network_status.dart';
 import '../network/offline.dart'; // for Future
@@ -132,6 +134,8 @@ class _BiowasteReceivedByvehicleState extends State<BiowasteReceivedByvehicle> {
 
   @override
   Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
     return StreamProvider<NetworkStatus>(
       create:
           (context) => NetworkStatusService().networkStatusController.stream,
@@ -144,7 +148,7 @@ class _BiowasteReceivedByvehicleState extends State<BiowasteReceivedByvehicle> {
               /// Custom Gradient AppBar
               mAppBar(
                 onLeadingIconClick: () => Navigator.pop(context),
-                scTitle: 'Bio Waste Received By Vehicle',
+                scTitle: t.translate('bmw_received_by_vehicle'),
                 centerTile: false,
                 showLeading: true,
                 showActions: true,
@@ -223,15 +227,15 @@ class _BiowasteReceivedByvehicleState extends State<BiowasteReceivedByvehicle> {
                                             ],
                                           ),
                                         ),
-                                        children: const [
-                                          _TableHeaderCell("Sr.\nNo."),
-                                          _TableHeaderCell("Date"),
-                                          _TableHeaderCell("HCF Name"),
+                                        children:  [
+                                          _TableHeaderCell(t.translate('srno')),
+                                          _TableHeaderCell(t.translate('date'),),
+                                          _TableHeaderCell(t.translate('hcf_name'),),
                                           _TableHeaderCell(
-                                            "Total\nno. of Bags",
+                                              t.translate('total_bags'),
                                           ),
                                           _TableHeaderCell(
-                                            "Total Waste\nGenerated",
+                                              t.translate('total_waste'),
                                           ),
                                         ],
                                       ),
