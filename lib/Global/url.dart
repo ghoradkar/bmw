@@ -1,13 +1,19 @@
 const String appVersion = "1.5";
 //test
-String baseurl='http://210.89.42.103:8080/MpcbAPi-Project/api/bioWaste/';//test
-String login_baseurl='http://210.89.42.103:8080/MpcbAPi-Project/api/';
-String masterurl='http://210.89.42.103:8080/MpcbAPi-Project/api/masters/';
+String baseurl2='http://210.89.42.103:8080/MpcbAPi-Project/api/bioWaste/';//test
+String login_baseurl2='http://210.89.42.103:8080/MpcbAPi-Project/api/';
+String masterurl2='http://210.89.42.103:8080/MpcbAPi-Project/api/masters/';
 
 //dev
 String baseurl1='http://103.251.94.10:8080/MpcbAPi-Project/api/bioWaste/';//dev
 String login_baseurl1='http://103.251.94.10:8080/MpcbAPi-Project/api/';
 String masterurl1='http://103.251.94.10:8080/MpcbAPi-Project/api/masters/';
+
+//prod
+
+String baseurl='http://103.228.151.87:8080/MpcbAPi-Project/api/bioWaste/';//dev
+String login_baseurl='http://103.228.151.87:8080/MpcbAPi-Project/api/';
+String masterurl='http://103.228.151.87:8080/MpcbAPi-Project/api/masters/';
 
 
 String LOGIN = "auth/login";

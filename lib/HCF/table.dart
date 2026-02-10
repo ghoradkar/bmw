@@ -77,6 +77,9 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
       );
 
       print('${baseurl}${ADD_UPDATE_WASTE}');
+      print(jsonEncode(payload));
+
+      print(response.body);
       if (response.statusCode == 201) {
         print(response.body);
         final jsonResponse = jsonDecode(response.body);

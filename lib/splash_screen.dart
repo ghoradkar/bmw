@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import 'CBWTF_Disposal/disposal_overall_colection.dart';
 import 'Global/app_routes.dart';
 import 'Global/images.dart';
+import 'Global/url.dart';
 import 'authentication/login_screen.dart';
 
 class SplashScreen extends StatefulWidget {
@@ -18,6 +19,7 @@ class _SplashScreenState extends State<SplashScreen> {
   @override
   void initState() {
     super.initState();
+    print(baseurl);
     // Navigate safely after first frame
     WidgetsBinding.instance.addPostFrameCallback((_) {
       _checkFirstTimeAndNavigate();

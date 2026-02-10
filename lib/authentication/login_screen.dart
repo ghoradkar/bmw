@@ -171,6 +171,14 @@ class _LoginScreenState extends State<LoginScreen> {
       'appversion': appVersion,
       'osVersion': osVersion,
     });
+    print(uri);
+    print( jsonEncode({
+      'username': username,
+      'password': password,
+      'currLoginOutFlag': 'L',
+      'appversion': appVersion,
+      'osVersion': osVersion,
+    }));
 
     try {
       // 🔁 Check for app update
@@ -188,6 +196,7 @@ class _LoginScreenState extends State<LoginScreen> {
 
       // ✅ Handle success response
       if (response.statusCode == 200) {
+        print('h');
         final data = jsonDecode(response.body);
 
         if (!data.containsKey('jwtToken')) {
@@ -196,30 +205,37 @@ class _LoginScreenState extends State<LoginScreen> {
           );
           return;
         }
+        print('su');
 
         final user = data['tmUsers'];
         final prefs = await SharedPreferences.getInstance();
+        print(user);
 
         // 💾 Save user data
         await prefs.setBool("isLoggedIn", true);
         await prefs.setString('UserId', user['userId'].toString());
-        await prefs.setString('username', data['username']);
-        await prefs.setString('email', user['emailId']);
+        await prefs.setString(
+          'username',
+          user['userName'] ?? data['username'] ?? '',
+        );
+        await prefs.setString('email', user['emailId'] ?? '');
+        await prefs.setBool("isLoggedIn", true);
         await prefs.setString('Token', data['jwtToken']);
         await prefs.setString('osversion', osVersion ?? '');
         _setUser(user);
-        keepMeSignedIn == true
-            ? await saveCredentials(
-              _usernameController.text,
-              _passwordController.text,
-            )
-            : await clearCredentials();
+        print('done');
 
-        setState(() {
-          prefs.setBool("isLoggedIn", true);
-        });
+        // keepMeSignedIn == true
+        //     ? await saveCredentials(
+        //       _usernameController.text,
+        //       _passwordController.text,
+        //     )
+        //     : await clearCredentials();
 
+
+       print('role');
         userRole = await GetUserType(user['lookupDetIdRoleType']);
+        print(userRole);
         await prefs.setString('userRole', userRole ?? '');
 
         if (!context.mounted) return;
@@ -422,6 +438,7 @@ class _LoginScreenState extends State<LoginScreen> {
       if (response.statusCode == 200) {
         final jsonResponse = jsonDecode(response.body);
         Map<String, dynamic> userRole = jsonResponse['data'];
+        print('userRole');
         print(userRole['lookupDetDescEn']);
         return userRole['lookupDetDescEn'];
       } else {
