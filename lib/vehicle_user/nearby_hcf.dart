@@ -171,21 +171,21 @@ class _DiscoverNearbyHCFScreenState extends State<DiscoverNearbyHCFScreen> {
 
 
       final response = await http.post(
-        Uri.parse('${baseurl}${CBWTF_MAP}'),
+        Uri.parse('${baseurl}${CBWTF_MAP}$userId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode(body)
+        //body: jsonEncode(body)
 
       );
       print('${baseurl}${CBWTF_MAP}');
-      print(body);
+     // print(body);
 
       print(response.body);
 
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
         hcfList = data['data'];
         print(hcfList);

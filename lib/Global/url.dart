@@ -43,7 +43,7 @@ String SEND_TO_CBWTF='updateCbwtfFlag?wasteId=';
 //cbwtf
 String CBWTF_MAP_LIST='get-biowaste-hcf-data';
 String CBWTF_ASSIGN_VEHICLE='saveMultipleVehicleAssign';
-String CBWTF_MAP='getHcfListByUserId';
+String CBWTF_MAP='get-cbwtf-hcfList?userId=';
 String CBWTF_MAP_MULTIPLE_HCF='getCBWTFDataByHcfId?hcfId=';
 String CBWTF_MAP_DATA='getCBWTFData/';
 String GET_VEHICLE_USERS='getVehicleUsers';

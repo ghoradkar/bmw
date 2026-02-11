@@ -206,23 +206,26 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
       final token = prefs.getString('Token') ?? '';
       final userId = prefs.getString('UserId');
 
-      final body = {
-        "scheduleFromDate": startDate,
-        "scheduleToDate": endDate,
-        "userId": userId
-      };
+      // final body = {
+      //   "scheduleFromDate": startDate,
+      //   "scheduleToDate": endDate,
+      //   "userId": userId
+      // };
 
       final response = await http.post(
-        Uri.parse('${baseurl}${CBWTF_MAP}'),
+        Uri.parse('${baseurl}${CBWTF_MAP}$userId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
-        body: jsonEncode(body),
+        //body: jsonEncode(body),
       );
-      print(body);
+      print('${baseurl}${CBWTF_MAP}$userId');
+     // print(body);
+      print(response.body);
+      print(response.statusCode);
 
-      if (response.statusCode == 200) {
+      if (response.statusCode == 201) {
         final data = jsonDecode(response.body);
         print(data);
         hcfList = data['data'];
@@ -249,8 +252,8 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
     Set<Marker> tempMarkers = {};
 
     for (var hcf in hcfList) {
-      final lat = double.tryParse(hcf['latitude'].toString());
-      final lng = double.tryParse(hcf['logitude'].toString());
+      final lat = double.tryParse(hcf['geoTagLatitude'].toString());
+      final lng = double.tryParse(hcf['geoTagLongitude'].toString());
       final hcfId = hcf['hcfId'];
 
       if (lat != null && lng != null) {
@@ -264,7 +267,7 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
               isSelected ? BitmapDescriptor.hueGreen : BitmapDescriptor.hueRed,
             ),
             onTap: () => _onMarkerTap(hcf),
-            infoWindow: InfoWindow(title: hcf['hcfName']),
+            infoWindow: InfoWindow(title: hcf['nameOfHcf']),
           ),
         );
       }
@@ -276,23 +279,47 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
     });
   }
 
+  // void _prepareGroupedHcfData() {
+  //   _groupedHcfMap.clear();
+  //
+  //   for (var hcf in hcfList) {
+  //     final int hcfId = hcf['hcfId'];
+  //     if (_groupedHcfMap.containsKey(hcfId)) {
+  //       _groupedHcfMap[hcfId]!['totalQtyinBag'] += (hcf['totalWaste'] ?? 0).toDouble();
+  //       _groupedHcfMap[hcfId]!['totalNoBag'] += (hcf['totalBag'] ?? 0).toInt();
+  //     } else {
+  //       _groupedHcfMap[hcfId] = {
+  //         ...hcf,
+  //         'totalWaste': (hcf['totalWaste'] ?? 0).toDouble(),
+  //         'totalBag': (hcf['totalBag'] ?? 0).toInt(),
+  //       };
+  //     }
+  //   }
+  // }
   void _prepareGroupedHcfData() {
     _groupedHcfMap.clear();
 
     for (var hcf in hcfList) {
       final int hcfId = hcf['hcfId'];
+
+      final double qty =
+      (hcf['totalQtyinBag'] ?? 0).toDouble();
+      final int bags =
+      (hcf['totalNoBag'] ?? 0).toInt();
+
       if (_groupedHcfMap.containsKey(hcfId)) {
-        _groupedHcfMap[hcfId]!['totalWaste'] += (hcf['totalWaste'] ?? 0).toDouble();
-        _groupedHcfMap[hcfId]!['totalBag'] += (hcf['totalBag'] ?? 0).toInt();
+        _groupedHcfMap[hcfId]!['totalQtyinBag'] += qty;
+        _groupedHcfMap[hcfId]!['totalNoBag'] += bags;
       } else {
         _groupedHcfMap[hcfId] = {
           ...hcf,
-          'totalWaste': (hcf['totalWaste'] ?? 0).toDouble(),
-          'totalBag': (hcf['totalBag'] ?? 0).toInt(),
+          'totalQtyinBag': qty,
+          'totalNoBag': bags,
         };
       }
     }
   }
+
 
   void _onMarkerTap(Map<String, dynamic> hcf) {
     final hcfId = hcf['hcfId'];
@@ -309,7 +336,6 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
       _generateMarkers();
     });
   }
-
   void _calculateTotals() {
     double weightSum = 0;
     double bagSum = 0;
@@ -317,18 +343,39 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
     for (var hcfId in _selectedHcfIds) {
       final hcf = _groupedHcfMap[hcfId];
       if (hcf != null) {
-        weightSum += hcf['totalWaste'];
-        bagSum += hcf['totalBag'];
+        weightSum += (hcf['totalQtyinBag'] ?? 0).toDouble();
+        bagSum += (hcf['totalNoBag'] ?? 0).toInt();
       }
     }
 
     setState(() {
       totalWeight = weightSum;
-      totalBagsCount = bagSum;
+      totalBagsCount = bagSum.toDouble();
       totalhcf = _selectedHcfIds.length.toString();
-      totalBags = totalBagsCount.toString();
+      totalBags = bagSum.toString();
     });
   }
+
+
+  // void _calculateTotals() {
+  //   double weightSum = 0;
+  //   double bagSum = 0;
+  //
+  //   for (var hcfId in _selectedHcfIds) {
+  //     final hcf = _groupedHcfMap[hcfId];
+  //     if (hcf != null) {
+  //       weightSum += hcf['totalWaste'];
+  //       bagSum += hcf['totalBag'];
+  //     }
+  //   }
+  //
+  //   setState(() {
+  //     totalWeight = weightSum;
+  //     totalBagsCount = bagSum;
+  //     totalhcf = _selectedHcfIds.length.toString();
+  //     totalBags = totalBagsCount.toString();
+  //   });
+  // }
 
   bool _isPointInsidePolygon(LatLng point, List<LatLng> polygon) {
     int intersectCount = 0;
@@ -347,16 +394,38 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
     return (intersectCount % 2) == 1;
   }
 
+  // void _selectHcfsInsidePolygon(List<LatLng> polygonPoints) {
+  //   _selectedHcfIds.clear();
+  //   _selectedHcfs.clear();
+  //
+  //   for (var hcf in _groupedHcfMap.values) {
+  //     final lat = double.tryParse(hcf['latitude'].toString());
+  //     final lng = double.tryParse(hcf['logitude'].toString());
+  //     if (lat == null || lng == null) continue;
+  //
+  //     final point = LatLng(lat, lng);
+  //     if (_isPointInsidePolygon(point, polygonPoints)) {
+  //       _selectedHcfIds.add(hcf['hcfId']);
+  //       _selectedHcfs.add(hcf);
+  //     }
+  //   }
+  //
+  //   _calculateTotals();
+  //   _generateMarkers();
+  //
+  // }
   void _selectHcfsInsidePolygon(List<LatLng> polygonPoints) {
     _selectedHcfIds.clear();
     _selectedHcfs.clear();
 
     for (var hcf in _groupedHcfMap.values) {
-      final lat = double.tryParse(hcf['latitude'].toString());
-      final lng = double.tryParse(hcf['logitude'].toString());
+      final lat = double.tryParse(hcf['geoTagLatitude'].toString());
+      final lng = double.tryParse(hcf['geoTagLongitude'].toString());
+
       if (lat == null || lng == null) continue;
 
       final point = LatLng(lat, lng);
+
       if (_isPointInsidePolygon(point, polygonPoints)) {
         _selectedHcfIds.add(hcf['hcfId']);
         _selectedHcfs.add(hcf);
@@ -366,6 +435,7 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
     _calculateTotals();
     _generateMarkers();
   }
+
 
   void _onMapTap(LatLng position) {
     setState(() {
@@ -967,6 +1037,9 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
     );
   }
   void _assignVehicleToSelectedHcfs(t) async{
+    if (_polygonPoints.isNotEmpty) {
+      _selectHcfsInsidePolygon(_polygonPoints);
+    }
     if (_selectedHcfIds.isEmpty) {
       // No HCF selected
       _showError("Please select at least one HCF or draw a polygon");
@@ -1004,7 +1077,13 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
             message:t.translate('vehicle_assigned'),
 
             onOk: () {
-             // Navigator.pop(context);
+              Navigator.pushReplacement(
+                context,
+                MaterialPageRoute(builder: (_) =>NearbyHCFScreen()),
+              );
+           //  Navigator.pop(context);
+
+
 
               //launchUrl(Uri.parse('https://www.ecmpcb.in/registration'));
             },
