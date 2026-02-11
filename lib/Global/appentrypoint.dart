@@ -9,7 +9,7 @@ class AppEntryPoint extends StatelessWidget {
 
   Future<bool> _shouldForceUpdate() async {
     final newVersion = NewVersionPlus(
-      androidId: 'com.mpcb_bio_waste.app',
+      androidId: 'com.bmw.app',
       iOSId: '6747034838',
     );
 

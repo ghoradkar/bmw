@@ -9,16 +9,22 @@ plugins {
 }
 
 android {
-    namespace = "com.mpcb_bio_waste.app"
+    namespace = "com.bmw.app"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "com.mpcb_bio_waste.app"
+        applicationId = "com.bmw.app"
         minSdk = 24
         targetSdk = 35
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
+
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_17
+        targetCompatibility = JavaVersion.VERSION_17
+    }
+
     kotlinOptions {
         jvmTarget = "17"
     }
@@ -26,38 +32,21 @@ android {
     kotlin {
         jvmToolchain(17)
     }
-
-
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_17
-        targetCompatibility = JavaVersion.VERSION_17
-    }
-
-
-
-
-    // 🔐 Release signing config
-    signingConfigs {
-        create("release") {
-            val props = Properties()
-            val propsFile = rootProject.file("key.properties")
-
-            if (propsFile.exists()) {
-                props.load(FileInputStream(propsFile))
-
-                storeFile = file(props["storeFile"] as String)
-                storePassword = props["storePassword"] as String
-                keyAlias = props["keyAlias"] as String
-                keyPassword = props["keyPassword"] as String
-            }
-        }
-    }
-
+//    signingConfigs {
+//        create("release") {
+//            keyAlias = keystoreProperties["keyAlias"] as String
+//            keyPassword = keystoreProperties["keyPassword"] as String
+//            storeFile = file(keystoreProperties["storeFile"] as String)
+//            storePassword = keystoreProperties["storePassword"] as String
+//        }
+//    }
     buildTypes {
-        getByName("release") {
-            signingConfig = signingConfigs.getByName("release")
+        release {
+            signingConfig = signingConfigs.getByName("debug")
+
             isMinifyEnabled = true
             isShrinkResources = true
+
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
@@ -71,11 +60,8 @@ flutter {
 }
 
 dependencies {
-    // Room
     implementation("androidx.room:room-runtime:2.8.4")
     kapt("androidx.room:room-compiler:2.8.4")
-
-    // Optional - Kotlin extensions (safe to keep)
     implementation("androidx.room:room-ktx:2.8.4")
 }
 

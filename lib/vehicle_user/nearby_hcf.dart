@@ -131,6 +131,7 @@ class _DiscoverNearbyHCFScreenState extends State<DiscoverNearbyHCFScreen> {
         },
         body: jsonEncode(body),
       );
+      print(body);
       print('${baseurl}${VEHICLE_DASHBOARD_COUNT}');
       print(response.body);
 

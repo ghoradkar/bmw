@@ -1,4 +1,4 @@
-package com.mpcb_bio_waste.app
+package com.bmw.app
 
 import io.flutter.embedding.android.FlutterActivity
 

@@ -323,7 +323,7 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
 
   void _onMarkerTap(Map<String, dynamic> hcf) {
     final hcfId = hcf['hcfId'];
-
+    print(hcf);
     setState(() {
       if (_selectedHcfIds.contains(hcfId)) {
         _selectedHcfIds.remove(hcfId);
@@ -1052,18 +1052,26 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
       return;
     }
     print('done');
-   // print(_selectedHcfs);
-    var body = await ApiService.buildWastePayloadList(
+    print(_selectedHcfs);
+    // var body = await ApiService.buildWastePayloadList(
+    //   inputList: _selectedHcfs,
+    //   vehicle: selectedVehicle!,
+    // );
+    // print(body)
+    // ;
+    var bodyList = await ApiService.buildWastePayloadList(
       inputList: _selectedHcfs,
       vehicle: selectedVehicle!,
     );
-    print(body);
 
-    if (body.isNotEmpty) {
-      var value = await ApiService.AssignVehicle(
-        context,
-        body,
-      );
+    // for (var item in bodyList) {
+    //   await ApiService.AssignVehicle(context, item);
+    // }
+
+    if (bodyList.isNotEmpty) {
+      for (var item in bodyList) {
+        final value =await ApiService.AssignVehicle(context, item);
+
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(content: Text('${value['message']}')),
       );
@@ -1091,7 +1099,7 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
         );
 
 
-      }}
+      }}}
 
     // Both HCFs/polygon and vehicle selected → call API
    // _hitAssignVehicleApi();

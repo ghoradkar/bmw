@@ -14,32 +14,79 @@ import '../authentication/logout.dart';
 
 class ApiService {
 
+  // static Future<List<Map<String, dynamic>>> buildWastePayloadList({
+  //   required List<dynamic> inputList,
+  //   required Map<String,dynamic> vehicle
+  //
+  // }) async {
+  //   final prefs = await SharedPreferences.getInstance();
+  //   final user = prefs.getString('user') ?? '';
+  //   final userid = prefs.getString('UserId') ?? '';
+  //  // print(user);
+  //   print(vehicle);
+  //   return inputList.map((item) {
+  //     final String dateStr = item['wasteQtyDate']; // e.g. "2025-08-01"
+  //     final dateParts = dateStr.split('-');        // [2025, 08, 01]
+  //     final formattedDate = '${dateParts[0]}/${dateParts[1]}/${dateParts[2]}'; // "01/08/2025"
+  //
+  //     return {
+  //       "hcfWasteId": item["hcfWasteId"],
+  //       "wasteQntyDate":formattedDate,
+  //       "vehicleUserId": vehicle['userId'],
+  //       "vehicleNo": vehicle['vehicleNo'],
+  //       "userId": userid,
+  //       "chassisNo":vehicle['vehicleChassis'],
+  //       "vehicleAssignDate": formattedDate
+  //     };
+  //   }).toList();
+  // }
   static Future<List<Map<String, dynamic>>> buildWastePayloadList({
     required List<dynamic> inputList,
-    required Map<String,dynamic> vehicle
-
+    required Map<String, dynamic> vehicle,
   }) async {
+
     final prefs = await SharedPreferences.getInstance();
-    final user = prefs.getString('user') ?? '';
-    final userid = prefs.getString('UserId') ?? '';
-   // print(user);
-    print(vehicle);
+    final userid = prefs.getString('UserId');
+
     return inputList.map((item) {
-      final String dateStr = item['wasteQtyDate']; // e.g. "2025-08-01"
-      final dateParts = dateStr.split('-');        // [2025, 08, 01]
-      final formattedDate = '${dateParts[0]}/${dateParts[1]}/${dateParts[2]}'; // "01/08/2025"
+
+      /// ✅ Handle date safely
+      String formattedDate = "";
+
+      final String? dateStr =
+          item['wasteQntyDate'] ?? item['wasteQtyDate'];
+
+      if (dateStr != null) {
+        if (dateStr.contains("-")) {
+          // Format: yyyy-MM-dd
+          final parts = dateStr.split("-");
+          if (parts.length == 3) {
+            formattedDate =
+            "${parts[2]}/${parts[1]}/${parts[0]}";
+          }
+        } else if (dateStr.contains("/")) {
+          // Format: yyyy/MM/dd
+          final parts = dateStr.split("/");
+          if (parts.length == 3) {
+            formattedDate =
+            "${parts[2]}/${parts[1]}/${parts[0]}";
+          }
+        }
+      }
 
       return {
-        "hcfWasteId": item["hcfWasteId"],
-        "wasteQntyDate":formattedDate,
+        "hcfWasteId": item["wasteId"],
+        "wasteQntyDate": formattedDate,
         "vehicleUserId": vehicle['userId'],
         "vehicleNo": vehicle['vehicleNo'],
-        "userId": userid,
-        "chassisNo":vehicle['vehicleChassis'],
-        "vehicleAssignDate": formattedDate
+        "userId": userid != null ? int.tryParse(userid) : null,
+        "chassisNo": vehicle['vehicleChassis'],
+        //"vehicleAssignDate": formattedDate,
       };
+
     }).toList();
   }
+
 
 
 

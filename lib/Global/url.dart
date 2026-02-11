@@ -1,8 +1,8 @@
 const String appVersion = "1.5";
 //test
-String baseurl2='http://210.89.42.103:8080/MpcbAPi-Project/api/bioWaste/';//test
-String login_baseurl2='http://210.89.42.103:8080/MpcbAPi-Project/api/';
-String masterurl2='http://210.89.42.103:8080/MpcbAPi-Project/api/masters/';
+String baseurl='http://210.89.42.103:8080/MpcbAPi-Project/api/bioWaste/';//test
+String login_baseurl='http://210.89.42.103:8080/MpcbAPi-Project/api/';
+String masterurl='http://210.89.42.103:8080/MpcbAPi-Project/api/masters/';
 
 //dev
 String baseurl1='http://103.251.94.10:8080/MpcbAPi-Project/api/bioWaste/';//dev
@@ -11,9 +11,9 @@ String masterurl1='http://103.251.94.10:8080/MpcbAPi-Project/api/masters/';
 
 //prod
 
-String baseurl='http://103.228.151.87:8080/MpcbAPi-Project/api/bioWaste/';//dev
-String login_baseurl='http://103.228.151.87:8080/MpcbAPi-Project/api/';
-String masterurl='http://103.228.151.87:8080/MpcbAPi-Project/api/masters/';
+String baseurl2='http://103.228.151.87:8080/MpcbAPi-Project/api/bioWaste/';//dev
+String login_baseurl2='http://103.228.151.87:8080/MpcbAPi-Project/api/';
+String masterurl2='http://103.228.151.87:8080/MpcbAPi-Project/api/masters/';
 
 
 String LOGIN = "auth/login";
@@ -42,7 +42,8 @@ String SEND_TO_CBWTF='updateCbwtfFlag?wasteId=';
 
 //cbwtf
 String CBWTF_MAP_LIST='get-biowaste-hcf-data';
-String CBWTF_ASSIGN_VEHICLE='saveMultipleVehicleAssign';
+//String CBWTF_ASSIGN_VEHICLE='saveMultipleVehicleAssign';
+String CBWTF_ASSIGN_VEHICLE='saveVehicleAssign';
 String CBWTF_MAP='get-cbwtf-hcfList?userId=';
 String CBWTF_MAP_MULTIPLE_HCF='getCBWTFDataByHcfId?hcfId=';
 String CBWTF_MAP_DATA='getCBWTFData/';

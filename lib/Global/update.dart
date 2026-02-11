@@ -27,7 +27,7 @@ class  UpdateState extends State<Update> {
   }
   // final String playStoreUrl = 'https://play.google.com/store/apps/details?id=com.mpcb.surveyor&hl=en'; // 🔁 Replace with your app's package name
 
-  final String androidAppId = 'com.mpcb_bio_waste.app';
+  final String androidAppId = 'com.bmw.app';
   final String iOSAppId = '6747034838'; // e.g. 'id1234567890'
 
   void _launchStore() async {
