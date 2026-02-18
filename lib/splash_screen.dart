@@ -107,14 +107,14 @@ class _SplashScreenState extends State<SplashScreen> {
                 children: [
                   Image.asset(
                     logo,
-                    width: 90,
-                    height: 90,
+                    width: 120,
+                    height: 120,
                   ),
                   const SizedBox(height: 8),
                   const Text(
-                    'Bio Waste App',
+                    'MH-BMW Management',
                     style: TextStyle(
-                      fontSize: 18,
+                      fontSize: 15,
                       fontWeight: FontWeight.bold,
                       color: Colors.black87,
                     ),

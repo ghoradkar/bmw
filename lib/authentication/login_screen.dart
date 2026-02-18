@@ -513,7 +513,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         Image.asset(logo, width: 100),
                         const SizedBox(height: 10),
                         const Text(
-                          'BMW Waste Management',
+                          'MH-BMW Management',
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
