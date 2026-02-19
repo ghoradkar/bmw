@@ -54,6 +54,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
       final barcode = scanData.code ?? '';
       if (barcode.isEmpty) return;
 
+      print(barcode);
       // Prevent duplicates before returning
       final alreadyScanned =
       widget.rows.any((row) => row['barcodeNo'] == barcode);
@@ -70,6 +71,7 @@ class _BarcodeScannerScreenState extends State<BarcodeScannerScreen> {
 
       // Return scanned barcode to previous screen
       if (widget.rows.isEmpty){
+        print(barcode);
       Navigator.pushReplacement(
           context,
           MaterialPageRoute(

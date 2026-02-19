@@ -533,7 +533,14 @@ class _LoginScreenState extends State<LoginScreen> {
                           textAlign: TextAlign.center,
                           style: TextStyle(fontSize: 13),
                         ),
+                        //const SizedBox(height: 20),
+                        Text(
+                          t.translate('welcome_txt'),
+                          textAlign: TextAlign.center,
+                          style: TextStyle(fontSize: 13),
+                        ),
                         const SizedBox(height: 20),
+
 
                         // Username
                         AppTextfield(

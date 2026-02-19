@@ -87,13 +87,17 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('Token') ?? '';
+      final userId = prefs.getString('UserId');
+
       final response = await http.get(
-        Uri.parse('${baseurl}${GET_VEHICLE_USERS}'),
+        Uri.parse('${baseurl}${GET_VEHICLE_USERS}$userId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',
         },
       );
+      print('${baseurl}${GET_VEHICLE_USERS}$userId');
+      print(response.body);
 
       if (response.statusCode == 200) {
         final res = jsonDecode(response.body);
@@ -248,6 +252,38 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
     }
   }
 
+  // void _generateMarkers() {
+  //   Set<Marker> tempMarkers = {};
+  //
+  //   for (var hcf in hcfList) {
+  //     final lat = double.tryParse(hcf['geoTagLatitude'].toString());
+  //     final lng = double.tryParse(hcf['geoTagLongitude'].toString());
+  //     final hcfId = hcf['hcfId'];
+  //     print(hcfId);
+  //
+  //     if (lat != null && lng != null) {
+  //       final isSelected = _selectedHcfIds.contains(hcfId);
+  //       print(isSelected);
+  //
+  //       tempMarkers.add(
+  //         Marker(
+  //           markerId: MarkerId(hcfId.toString()),
+  //           position: LatLng(lat, lng),
+  //           icon: BitmapDescriptor.defaultMarkerWithHue(
+  //             isSelected==true ? BitmapDescriptor.hueGreen : BitmapDescriptor.hueRed,
+  //           ),
+  //           onTap: () => _onMarkerTap(hcf),
+  //           infoWindow: InfoWindow(title: hcf['nameOfHcf']),
+  //         ),
+  //       );
+  //     }
+  //   }
+  //
+  //   setState(() {
+  //     _markers = tempMarkers;
+  //     _allMarkers = tempMarkers;
+  //   });
+  // }
   void _generateMarkers() {
     Set<Marker> tempMarkers = {};
 
@@ -264,7 +300,9 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
             markerId: MarkerId(hcfId.toString()),
             position: LatLng(lat, lng),
             icon: BitmapDescriptor.defaultMarkerWithHue(
-              isSelected ? BitmapDescriptor.hueGreen : BitmapDescriptor.hueRed,
+              isSelected
+                  ? BitmapDescriptor.hueGreen
+                  : BitmapDescriptor.hueRed,
             ),
             onTap: () => _onMarkerTap(hcf),
             infoWindow: InfoWindow(title: hcf['nameOfHcf']),
@@ -273,10 +311,8 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
       }
     }
 
-    setState(() {
-      _markers = tempMarkers;
-      _allMarkers = tempMarkers;
-    });
+    _markers = tempMarkers;
+    _allMarkers = tempMarkers;
   }
 
   // void _prepareGroupedHcfData() {
@@ -321,21 +357,58 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
   }
 
 
+  // void _onMarkerTap(Map<String, dynamic> hcf) {
+  //   final hcfId = hcf['hcfId'];
+  //   print(hcf);
+  //   setState(() {
+  //     if (_selectedHcfIds.contains(hcfId)) {
+  //       _selectedHcfIds.remove(hcfId);
+  //       _selectedHcfs.removeWhere((e) => e['hcfId'] == hcfId);
+  //     } else {
+  //       _selectedHcfIds.add(hcfId);
+  //       _selectedHcfs.add(hcf);
+  //     }
+  //     _calculateTotals();
+  //     _generateMarkers();
+  //   });
+  // }
   void _onMarkerTap(Map<String, dynamic> hcf) {
     final hcfId = hcf['hcfId'];
-    print(hcf);
+
     setState(() {
       if (_selectedHcfIds.contains(hcfId)) {
         _selectedHcfIds.remove(hcfId);
-        _selectedHcfs.removeWhere((e) => e['hcfId'] == hcfId);
+        _selectedHcfs.removeWhere((e ) => e['hcfId'] == hcfId);
       } else {
         _selectedHcfIds.add(hcfId);
         _selectedHcfs.add(hcf);
       }
+
       _calculateTotals();
       _generateMarkers();
     });
   }
+
+  // void _calculateTotals() {
+  //   double weightSum = 0;
+  //   double bagSum = 0;
+  //
+  //   for (var hcfId in _selectedHcfIds) {
+  //     final hcf = _groupedHcfMap[hcfId];
+  //     if (hcf != null) {
+  //       weightSum += (hcf['totalQtyinBag'] ?? 0).toDouble();
+  //      // weightSum = double.parse(weightSum.toStringAsFixed(3));
+  //       bagSum += (hcf['totalNoBag'] ?? 0).toInt();
+  //     }
+  //   }
+  //
+  //   setState(() {
+  //     totalWeight = weightSum;
+  //     totalBagsCount = bagSum.toDouble();
+  //     totalhcf = _selectedHcfIds.length.toString();
+  //     totalBags = bagSum.toString();
+  //   });
+  // }
   void _calculateTotals() {
     double weightSum = 0;
     double bagSum = 0;
@@ -348,12 +421,10 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
       }
     }
 
-    setState(() {
-      totalWeight = weightSum;
-      totalBagsCount = bagSum.toDouble();
-      totalhcf = _selectedHcfIds.length.toString();
-      totalBags = bagSum.toString();
-    });
+    totalWeight = weightSum;
+    totalBagsCount = bagSum.toDouble();
+    totalhcf = _selectedHcfIds.length.toString();
+    totalBags = bagSum.toString();
   }
 
 

@@ -170,8 +170,10 @@ class _ViewDetailsAfterScanState extends State<ViewDetailsAfterScan> {
     try {
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('Token') ?? '';
+      final userId = prefs.getString('UserId');
+
       final response = await http.get(
-        Uri.parse('${baseurl}${GET_VEHICLE_USERS}'),
+        Uri.parse('${baseurl}${GET_VEHICLE_USERS}$userId'),
         headers: {
           'Authorization': 'Bearer $token',
           'Content-Type': 'application/json',

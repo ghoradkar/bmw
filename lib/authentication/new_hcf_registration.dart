@@ -267,7 +267,7 @@ class _NewHCFRegisterScreenState extends State<NewHCFRegisterScreen> {
                   padding: const EdgeInsets.all(20),
                   child: Form(
                     key: _formKey,
-                    autovalidateMode: AutovalidateMode.onUserInteraction,
+                 //   autovalidateMode: AutovalidateMode.onUserInteraction,
                     child: _isLoading
                         ? const Center(
                       child: CircularProgressIndicator(

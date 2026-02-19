@@ -42,6 +42,8 @@ class _AppTextfieldState extends State<AppTextfield> {
   @override
   Widget build(BuildContext context) {
     return TextFormField(
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+
       controller: widget.controller,
       obscureText: _isObscured,
       validator: widget.validator,

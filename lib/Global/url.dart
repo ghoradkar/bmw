@@ -11,7 +11,7 @@ String masterurl1='http://103.251.94.10:8080/MpcbAPi-Project/api/masters/';
 
 //prod
 
-String baseurl='http://103.228.151.87:8080/MpcbAPi-Project/api/bioWaste/';//dev
+String baseurl='http://103.228.151.87:8080/MpcbAPi-Project/api/bioWaste/';//prod
 String login_baseurl='http://103.228.151.87:8080/MpcbAPi-Project/api/';
 String masterurl='http://103.228.151.87:8080/MpcbAPi-Project/api/masters/';
 
@@ -47,7 +47,7 @@ String CBWTF_ASSIGN_VEHICLE='saveVehicleAssign';
 String CBWTF_MAP='get-cbwtf-hcfList?userId=';
 String CBWTF_MAP_MULTIPLE_HCF='getCBWTFDataByHcfId?hcfId=';
 String CBWTF_MAP_DATA='getCBWTFData/';
-String GET_VEHICLE_USERS='getVehicleUsers';
+String GET_VEHICLE_USERS='getVehicleUsers/';
 String CBWTF_DASHBOARD_COUNT='cbwtfDashboardCOunt';
 String SEARCH_ASSIGNED_VEHICLE='vehicle-assign-search';
 

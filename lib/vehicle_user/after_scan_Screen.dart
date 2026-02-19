@@ -119,6 +119,7 @@ class _AfterScanScreenState extends State<AfterScanScreen> {
           'Content-Type': 'application/json',
         },
       );
+      print('${baseurl}${GET_QR_DATA}$extractedBarcode');
 
       if (!mounted) return;
 

@@ -94,6 +94,7 @@ class _ReceptionScannerState extends State<ReceptionScanner> {
 
       final barcode = scanData.code ?? '';
       if (barcode.isEmpty) return;
+      print(barcode);
 
       // Prevent duplicates before returning
       final alreadyScanned =
