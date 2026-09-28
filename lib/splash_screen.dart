@@ -1,6 +1,10 @@
 import 'dart:convert';
+import 'dart:io';
 import 'package:flutter/material.dart';
+import 'package:in_app_update/in_app_update.dart';
+import 'package:mpcb_bio_waste/self_registration/view/self_registration_status.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:upgrader/upgrader.dart';
 
 import 'CBWTF_Disposal/disposal_overall_colection.dart';
 import 'Global/app_routes.dart';
@@ -26,7 +30,55 @@ class _SplashScreenState extends State<SplashScreen> {
     });
   }
 
+  /// Blocks until the user updates, on both platforms, using each store's
+  /// own official update-status API (Play In-App Updates / iTunes Lookup) —
+  /// never a scraped Play Store web page, which is unreliable.
+  Future<void> _forceUpdateIfAvailable() async {
+    try {
+      if (Platform.isAndroid) {
+        final info = await InAppUpdate.checkForUpdate();
+        if (info.updateAvailability == UpdateAvailability.updateAvailable &&
+            info.immediateUpdateAllowed) {
+          // Hands off to Play's own full-screen blocking update UI.
+          await InAppUpdate.performImmediateUpdate();
+        }
+      } else if (Platform.isIOS) {
+        final upgrader = Upgrader.sharedInstance;
+        await upgrader.initialize();
+        if (upgrader.shouldDisplayUpgrade()) {
+          if (!mounted) return;
+          await showDialog<void>(
+            context: context,
+            barrierDismissible: false,
+            builder:
+                (_) => PopScope(
+                  canPop: false,
+                  child: AlertDialog(
+                    title: const Text('Update Required'),
+                    content: const Text(
+                      'A new version of this app is available. Please update to continue.',
+                    ),
+                    actions: [
+                      TextButton(
+                        onPressed: () => upgrader.sendUserToAppStore(),
+                        child: const Text('Update Now'),
+                      ),
+                    ],
+                  ),
+                ),
+          );
+        }
+      }
+    } catch (_) {
+      // Store/update-service unavailable (e.g. not installed via Play,
+      // no network, no Play Services) — never block app startup on this.
+    }
+  }
+
   Future<void> _checkFirstTimeAndNavigate() async {
+    await _forceUpdateIfAvailable();
+    if (!mounted) return;
+
     final prefs = await SharedPreferences.getInstance();
 
     final isLoggedIn = prefs.getBool('isLoggedIn') ?? false;
@@ -40,6 +92,26 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     print('user: $user');
+
+    // 0️⃣ Self-registered (temp survey HCF) user still awaiting scrutiny /
+    // real-role assignment -> show the pending-approval screen.
+    const knownRoles = {
+      'HCF User',
+      'CBWT Assign User',
+      'CBWT Reception User',
+      'Vehicle  User',
+      'Disposal User',
+    };
+    final bool isTempSurveyUser =
+        user != null && user['tempSurveyHcfUser'] == 'Y';
+    if (isLoggedIn && isTempSurveyUser && !knownRoles.contains(userRole)) {
+      if (!mounted) return;
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => const SelfRegistrationStatusScreen()),
+      );
+      return;
+    }
 
     // 1️⃣ Disposal User special case
     if (userRole == 'Disposal User') {
@@ -94,7 +166,8 @@ class _SplashScreenState extends State<SplashScreen> {
           Align(
             alignment: Alignment.bottomCenter,
             child: Container(
-              padding: const EdgeInsets.symmetric(horizontal: 80, vertical: 40),
+              margin: EdgeInsets.symmetric(horizontal: 20),
+              padding: EdgeInsets.symmetric(vertical: 40),
               decoration: const BoxDecoration(
                 color: Colors.white,
                 borderRadius: BorderRadius.only(
@@ -104,19 +177,29 @@ class _SplashScreenState extends State<SplashScreen> {
               ),
               child: Column(
                 mainAxisSize: MainAxisSize.min,
+                mainAxisAlignment: MainAxisAlignment.center,
+                crossAxisAlignment: CrossAxisAlignment.center,
                 children: [
-                  Image.asset(
-                    logo,
-                    width: 120,
-                    height: 120,
+                  Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Image.asset(secondLog, width: 100),
+                      Image.asset(logo, width: 126),
+                    ],
                   ),
-                  const SizedBox(height: 8),
-                  const Text(
-                    'MH-BMW Management',
-                    style: TextStyle(
-                      fontSize: 15,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.black87,
+                  const SizedBox(height: 10),
+                  const FittedBox(
+                    fit: BoxFit.scaleDown,
+                    child: Text(
+                      'MPCB-BMW Management',
+                      maxLines: 1,
+                      softWrap: false,
+                      overflow: TextOverflow.visible,
+                      style: TextStyle(
+                        fontSize: 15,
+                        fontWeight: FontWeight.bold,
+                        color: Colors.black87,
+                      ),
                     ),
                   ),
                 ],

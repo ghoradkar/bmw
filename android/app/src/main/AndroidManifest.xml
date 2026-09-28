@@ -1,5 +1,6 @@
 <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
+    <uses-permission android:name="android.permission.INTERNET" />
     <uses-feature
         android:name="android.hardware.camera"
         android:required="false" />
@@ -8,7 +9,7 @@
     <uses-permission android:name="android.permission.ACCESS_COARSE_LOCATION" />
 
     <application
-        android:label="MH-BMW Management"
+        android:label="MPCB_BMW "
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
         <activity

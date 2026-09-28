@@ -57,31 +57,26 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
       macId: "00-14-22-01-23-45",
       ipAddress: "192.168.1.1",
     );
-    print('payload');
-    print(DateTime.now().toIso8601String());
-    print(DateTime.now().toLocal().toIso8601String());
-    print(DateTime.now().toUtc());
-    print(jsonEncode(payload));
-
-
     try {
       final headers = {
         'Content-Type': 'application/json; charset=UTF-8',
         'Accept': 'application/json ; charset=UTF-8',
         'Authorization': 'Bearer $token',
       };
+      final uri = Uri.parse('$baseurl$ADD_UPDATE_WASTE');
+
+      print('SAVE_WASTE URL: $uri');
+      print('SAVE_WASTE REQUEST BODY: ${jsonEncode(payload)}');
+
       final response = await http.post(
-          Uri.parse('${baseurl}${ADD_UPDATE_WASTE}'),
-          headers: headers,
-          body: jsonEncode(payload)
+        uri,
+        headers: headers,
+        body: jsonEncode(payload),
       );
 
-      print('${baseurl}${ADD_UPDATE_WASTE}');
-      print(jsonEncode(payload));
+      print('SAVE_WASTE RESPONSE (${response.statusCode}): ${response.body}');
 
-      print(response.body);
       if (response.statusCode == 201) {
-        print(response.body);
         final jsonResponse = jsonDecode(response.body);
         if (jsonResponse['status'] == 'success') {
           final data = jsonResponse['data'];

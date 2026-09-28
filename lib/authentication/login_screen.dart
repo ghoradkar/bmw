@@ -1,12 +1,16 @@
+import 'dart:async';
 import 'dart:io';
+import 'dart:math';
 
 import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:flutter_secure_storage/flutter_secure_storage.dart';
 import 'package:http/http.dart' as http;
 import 'package:intl/intl.dart';
 import 'package:mpcb_bio_waste/Global/app_button.dart';
+import 'package:mpcb_bio_waste/Global/app_dialog.dart';
 import 'package:mpcb_bio_waste/Global/app_textfield.dart';
 import 'package:mpcb_bio_waste/Global/constant.dart';
 import 'dart:convert';
@@ -14,11 +18,13 @@ import 'dart:convert';
 import 'package:mpcb_bio_waste/Global/images.dart';
 import 'package:mpcb_bio_waste/Global/url.dart';
 import 'package:mpcb_bio_waste/authentication/new_hcf_registration.dart';
+import 'package:mpcb_bio_waste/authentication/otp_entry_dialog.dart';
 import 'package:mpcb_bio_waste/homeScreen.dart';
+import 'package:mpcb_bio_waste/self_registration/view/self_registration_otp_flow.dart';
+import 'package:mpcb_bio_waste/self_registration/view/self_registration_status.dart';
 import 'package:package_info_plus/package_info_plus.dart';
 import 'package:provider/provider.dart';
 import 'package:shared_preferences/shared_preferences.dart';
-import 'package:url_launcher/url_launcher.dart';
 
 import '../CBWTF_Disposal/disposal_overall_colection.dart';
 import '../CBWTF_Reception/overall_Data_collection.dart';
@@ -30,7 +36,9 @@ import 'forget_password.dart';
 
 class LoginScreen extends StatefulWidget {
   final String reset;
+
   const LoginScreen(this.reset, {super.key});
+
   @override
   _LoginScreenState createState() => _LoginScreenState();
 }
@@ -39,6 +47,11 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final TextEditingController _usernameController = TextEditingController();
   final TextEditingController _passwordController = TextEditingController();
+  final TextEditingController _mobileController = TextEditingController();
+
+  /// 'otp' or 'username' — which sign-in tab is active. Opens on 'otp'.
+  String _loginMode = 'otp';
+
   bool keepMeSignedIn = true;
   bool isLoading = false;
   String? userRole;
@@ -50,6 +63,71 @@ class _LoginScreenState extends State<LoginScreen> {
   String? osVersion;
   final secureStorage = FlutterSecureStorage();
   Map<String, dynamic> device_info = {};
+
+  // ---------------- Information banner (auto-scrolling) ----------------
+  final PageController _bannerController = PageController();
+  Timer? _bannerTimer;
+  int _currentBanner = 0;
+
+  // Titles/descriptions are localization keys resolved at build time so the
+  // banner follows the selected language (English / Marathi).
+  final List<Map<String, dynamic>> _banners = const [
+    {
+      'titleKey': 'banner_1_title',
+      'descKey': 'banner_1_desc',
+      'icon': Icons.campaign_outlined,
+    },
+    {
+      'titleKey': 'banner_2_title',
+      'descKey': 'banner_2_desc',
+      'icon': Icons.app_registration_outlined,
+    },
+    {
+      'titleKey': 'banner_3_title',
+      'descKey': 'banner_3_desc',
+      'icon': Icons.check_circle_outline,
+    },
+    {
+      'titleKey': 'banner_4_title',
+      'descKey': 'banner_4_desc',
+      'icon': Icons.how_to_reg_outlined,
+    },
+    {
+      'titleKey': 'banner_5_title',
+      'descKey': 'banner_5_desc',
+      'icon': Icons.recycling_outlined,
+    },
+    {
+      'titleKey': 'banner_6_title',
+      'descKey': 'banner_6_desc',
+      'icon': Icons.smartphone_outlined,
+    },
+  ];
+
+  void _startBannerTimer() {
+    _bannerTimer?.cancel();
+    _bannerTimer = Timer.periodic(const Duration(seconds: 5), (timer) {
+      if (!_bannerController.hasClients) return;
+      int nextPage = _currentBanner + 1;
+      if (nextPage >= _banners.length) nextPage = 0;
+      _bannerController.animateToPage(
+        nextPage,
+        duration: const Duration(milliseconds: 500),
+        curve: Curves.easeInOut,
+      );
+    });
+  }
+
+  void _pauseBannerTimer() {
+    _bannerTimer?.cancel();
+    _bannerTimer = null;
+  }
+
+  void _resumeBannerTimer() {
+    if (_bannerTimer != null) return;
+    _startBannerTimer();
+  }
+
   Future<void> saveCredentials(String username, String password) async {
     await secureStorage.write(key: 'username', value: username);
     await secureStorage.write(key: 'password', value: password);
@@ -137,30 +215,6 @@ class _LoginScreenState extends State<LoginScreen> {
     }
   }
 
-  String? packageName;
-  void checkVersion() async {
-    PackageInfo packageInfo = await PackageInfo.fromPlatform();
-
-    packageName = packageInfo.packageName;
-  }
-
-  Future<String?> getLatestVersion() async {
-    final url = Uri.parse(
-      "https://play.google.com/store/apps/details?id=$packageName&hl=en",
-    );
-
-    final response = await http.get(url);
-
-    if (response.statusCode == 200) {
-      RegExp regex = RegExp(r'\[\[\["([0-9]+\.[0-9]+\.[0-9]+)"\]\]');
-      var match = regex.firstMatch(response.body);
-      if (match != null) {
-        return match.group(1); // Extract version number
-      }
-    }
-    return null; // Return null if fetching fails
-  }
-
   Future<void> _login(String username, String password) async {
     final uri = Uri.parse('$login_baseurl$LOGIN');
     final headers = {'Content-Type': 'application/json'};
@@ -172,23 +226,17 @@ class _LoginScreenState extends State<LoginScreen> {
       'osVersion': osVersion,
     });
     print(uri);
-    print( jsonEncode({
-      'username': username,
-      'password': password,
-      'currLoginOutFlag': 'L',
-      'appversion': appVersion,
-      'osVersion': osVersion,
-    }));
+    print(
+      jsonEncode({
+        'username': username,
+        'password': password,
+        'currLoginOutFlag': 'L',
+        'appversion': appVersion,
+        'osVersion': osVersion,
+      }),
+    );
 
     try {
-      // 🔁 Check for app update
-      final latestVersion = await getLatestVersion();
-      if (latestVersion != null && latestVersion != appVersion) {
-        _showError('Please update to the latest version');
-        _redirectToPlayStore();
-        return;
-      }
-
       // 🌐 API Call
       final response = await http.post(uri, headers: headers, body: body);
       print(response.statusCode);
@@ -207,49 +255,7 @@ class _LoginScreenState extends State<LoginScreen> {
         }
         print('su');
 
-        final user = data['tmUsers'];
-        final prefs = await SharedPreferences.getInstance();
-        print(user);
-
-        // 💾 Save user data
-        await prefs.setBool("isLoggedIn", true);
-        await prefs.setString('UserId', user['userId'].toString());
-        await prefs.setString(
-          'username',
-          user['userName'] ?? data['username'] ?? '',
-        );
-        await prefs.setString('email', user['emailId'] ?? '');
-        await prefs.setBool("isLoggedIn", true);
-        await prefs.setString('Token', data['jwtToken']);
-        await prefs.setString('osversion', osVersion ?? '');
-        _setUser(user);
-        print('done');
-
-        // keepMeSignedIn == true
-        //     ? await saveCredentials(
-        //       _usernameController.text,
-        //       _passwordController.text,
-        //     )
-        //     : await clearCredentials();
-
-
-       print('role');
-        userRole = await GetUserType(user['lookupDetIdRoleType']);
-        print(userRole);
-        await prefs.setString('userRole', userRole ?? '');
-
-        if (!context.mounted) return;
-
-        // 🔐 Redirect
-        if (user['floginPwreset'] == 'N') {
-          fetchAssignedHCFData();
-          _redirectToRoleScreen(userRole, user["bulkDataSaveFlag"]);
-        } else {
-          Navigator.push(
-            context,
-            MaterialPageRoute(builder: (context) => ResetPasswordScreen()),
-          );
-        }
+        await _handleAuthSuccess(Map<String, dynamic>.from(data));
       } else {
         // ❌ Error handling based on status
         switch (response.statusCode) {
@@ -267,6 +273,57 @@ class _LoginScreenState extends State<LoginScreen> {
       }
     } catch (e) {
       _showError('Login failed: Please Enter Valid Credentials');
+    }
+  }
+
+  /// Shared post-login handling for both password login and OTP login.
+  /// [data] is the auth response: top-level `jwtToken` + `tmUsers` object.
+  ///
+  /// [skipPasswordReset] — OTP login skips the first-login password-reset
+  /// detour and goes straight to the role dashboard.
+  Future<void> _handleAuthSuccess(
+    Map<String, dynamic> data, {
+    bool skipPasswordReset = false,
+  }) async {
+    final user = data['tmUsers'];
+    final prefs = await SharedPreferences.getInstance();
+
+    // 💾 Save user data
+    await prefs.setBool("isLoggedIn", true);
+    await prefs.setString('UserId', user['userId'].toString());
+    await prefs.setString(
+      'username',
+      user['userName'] ?? data['username'] ?? '',
+    );
+    await prefs.setString('email', user['emailId'] ?? '');
+    await prefs.setString('Token', data['jwtToken']);
+    await prefs.setString('osversion', osVersion ?? '');
+    _setUser(user);
+
+    userRole = await GetUserType(user['lookupDetIdRoleType']);
+    await prefs.setString('userRole', userRole ?? '');
+
+    if (!context.mounted) return;
+
+    // 🔐 Redirect
+    final bool isTempSurveyUser = user['tempSurveyHcfUser'] == 'Y';
+
+    if (!skipPasswordReset && user['floginPwreset'] != 'N') {
+      Navigator.push(
+        context,
+        MaterialPageRoute(builder: (context) => ResetPasswordScreen()),
+      );
+    } else if (isTempSurveyUser && !_isKnownRole(userRole)) {
+      // Self-registered user still awaiting scrutiny / role assignment.
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(
+          builder: (context) => const SelfRegistrationStatusScreen(),
+        ),
+      );
+    } else {
+      fetchAssignedHCFData();
+      _redirectToRoleScreen(userRole, user["bulkDataSaveFlag"]);
     }
   }
 
@@ -293,6 +350,14 @@ class _LoginScreenState extends State<LoginScreen> {
   //     _showError('Unknown User !!');
   //   }
   // }
+  bool _isKnownRole(String? role) => const {
+    'HCF User',
+    'CBWT Assign User',
+    'CBWT Reception User',
+    'Vehicle  User',
+    'Disposal User',
+  }.contains(role);
+
   void _redirectToRoleScreen(String? role, bulk) {
     print('bulk');
     print(bulk);
@@ -456,241 +521,618 @@ class _LoginScreenState extends State<LoginScreen> {
     return null;
   }
 
-  void _redirectToPlayStore() async {
-    // String packageName = "com.example.myapp"; // Replace with your app's package name
-    final playStoreUrl =
-        "https://play.google.com/store/apps/details?id=$packageName";
-    if (await canLaunch(playStoreUrl)) {
-      await launch(playStoreUrl);
-    } else {
-      print("Could not open Play Store.");
-    }
+  // ---------------- Information banner UI ----------------
+
+  Widget _buildInformationBanner(AppLocalizations t) {
+    // Grow the fixed banner area with the (clamped) font scale so its text
+    // can't overflow when the device font size is turned up.
+    final double textScale = MediaQuery.textScalerOf(context).scale(13) / 13;
+    return Column(
+      children: [
+        SizedBox(
+          height: 150 * textScale,
+          child: Listener(
+            onPointerDown: (_) => _pauseBannerTimer(),
+            onPointerUp: (_) => _resumeBannerTimer(),
+            onPointerCancel: (_) => _resumeBannerTimer(),
+            child: PageView.builder(
+              controller: _bannerController,
+              itemCount: _banners.length,
+              physics: const BouncingScrollPhysics(),
+              onPageChanged: (index) {
+                if (!mounted) return;
+                setState(() => _currentBanner = index);
+              },
+              itemBuilder: (context, index) {
+                final banner = _banners[index];
+                return _buildSingleBanner(
+                  title: t.translate(banner['titleKey'] as String),
+                  description: t.translate(banner['descKey'] as String),
+                  icon: banner['icon'] as IconData,
+                );
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 10),
+        Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: List.generate(_banners.length, (index) {
+            final bool isSelected = _currentBanner == index;
+            return AnimatedContainer(
+              duration: const Duration(milliseconds: 250),
+              margin: const EdgeInsets.symmetric(horizontal: 3),
+              width: isSelected ? 18 : 7,
+              height: 7,
+              decoration: BoxDecoration(
+                color:
+                    isSelected ? const Color(0xFF1597D0) : Colors.grey.shade300,
+                borderRadius: BorderRadius.circular(10),
+              ),
+            );
+          }),
+        ),
+      ],
+    );
   }
 
-  @override
-  void initState() {
-    super.initState();
-    checkVersion();
-
-    getOSVersion();
-    loadSavedCredentials();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-
-
-    final t = AppLocalizations.of(context);
-    final langProvider = context.watch<LanguageProvider>();
-
-    return Scaffold(
-      body: Stack(
+  Widget _buildSingleBanner({
+    required String title,
+    required String description,
+    required IconData icon,
+  }) {
+    return Container(
+      margin: const EdgeInsets.symmetric(horizontal: 1),
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: const Color(0xFFF7FFF7),
+        border: Border.all(color: const Color(0xFF43D85A), width: 1.5),
+        borderRadius: BorderRadius.circular(24),
+      ),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.center,
         children: [
-          // Background image
-          SizedBox.expand(child: Image.asset(background, fit: BoxFit.cover)),
-
-          // Login form card
-          Align(
-            alignment: Alignment.bottomCenter,
-            child: SingleChildScrollView(
-              child: SafeArea(
-                // ✅ Fix: respects navigation bar & notch
-                top: false, // keep only bottom safe padding
-                child: Container(
-                  margin: const EdgeInsets.symmetric(horizontal: 15),
-                  padding: const EdgeInsets.all(20),
-                  decoration: BoxDecoration(
-                    color: Colors.white,
-                    borderRadius: const BorderRadius.only(
-                      topLeft: Radius.circular(24),
-                      topRight: Radius.circular(24),
-                    ),
-                  ),
-                  child: Form(
-                    key: _formKey,
-                    child: Column(
-                      children: [
-                        Image.asset(logo, width: 100),
-                        const SizedBox(height: 10),
-                        const Text(
-                          'MH-BMW Management',
-                          style: TextStyle(
-                            fontSize: 18,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 10),
-                         Text(
-    t.translate('sign_in') ,
-                          style: TextStyle(
-                            fontSize: 20,
-                            fontWeight: FontWeight.bold,
-                          ),
-                        ),
-                        const SizedBox(height: 8),
-                         Text(
-                          t.translate('welcome'),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        //const SizedBox(height: 20),
-                        Text(
-                          t.translate('welcome_txt'),
-                          textAlign: TextAlign.center,
-                          style: TextStyle(fontSize: 13),
-                        ),
-                        const SizedBox(height: 20),
-
-
-                        // Username
-                        AppTextfield(
-                          hintText:   t.translate('username'),
-                          controller: _usernameController,
-                          prefixIcon: Icons.person_outline_outlined,
-                          validator:
-                              (value) =>
-                                  value == null || value.isEmpty
-                                      ? 'Please enter username'
-                                      : null,
-                        ),
-                        const SizedBox(height: 16),
-
-                        // Password
-                        AppTextfield(
-                          controller: _passwordController,
-                          prefixIcon: Icons.lock_outline,
-                          // suffixIcon: GestureDetector(
-                          //   onTap: (){
-                          //     setState(() {
-                          //       isobscured=! isobscured;
-                          //     });
-                          //   },
-                          //     child:Icon(Icons.remove_red_eye_outlined,color: Colors.grey,)),
-                          obscureText: true,
-                          validator:
-                              (value) =>
-                                  value == null || value.isEmpty
-                                      ? 'Enter password'
-                                      : null,
-                          hintText:   t.translate('password'),
-                        ),
-
-                        SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                          children: [
-                            TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder:
-                                        (context) => NewHCFRegisterScreen(),
-                                  ),
-                                );
-                              },
-                              child:  Text(
-                                t.translate('new_hcf'),
-                                style: TextStyle(
-                                  color: Color(0xFF2196F3),
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-
-                            TextButton(
-                              onPressed: () {
-                                Navigator.push(
-                                  context,
-                                  MaterialPageRoute(
-                                    builder: (context) => ResetPasswordScreen(),
-                                  ),
-                                );
-                              },
-                              child:  Text(
-    t.translate('forgot_password'),
-                                style: TextStyle(
-                                  color: Colors.grey,
-                                  fontSize: 11,
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
-
-                        // Row(
-                        //   children: [
-                        //     Checkbox(
-                        //       value: keepMeSignedIn,
-                        //       onChanged: (value) {
-                        //         setState(() => keepMeSignedIn = value!);
-                        //       },
-                        //     ),
-                        //     const Text('Keep me Sign In'),
-                        //   ],
-                        // ),
-
-
-                        AppButton(
-                          text: t.translate('sign_in'),
-                          onPressed: () {
-                            _login(
-                              _usernameController.text,
-                              _passwordController.text,
-                            );
-                          },
-                          isLoading: isLoading,
-                          color: Colors.deepOrange,
-                          padding: const EdgeInsets.symmetric(
-                            vertical: 5,
-                            horizontal: 18,
-                          ),
-                        ),
-                        SizedBox(height: 10),
-                        Row(
-                          mainAxisAlignment: MainAxisAlignment.center,
-                          children: [
-                            Radio<String>(
-                              value: 'mr',
-                              activeColor: Colors.deepOrange                              ,
-                              groupValue: langProvider.locale.languageCode,
-                              onChanged: (value) {
-                                context.read<LanguageProvider>().changeLanguage(
-                                  value!,
-                                );
-                              },
-                            ),
-                            const Text('मराठी'),
-
-                            SizedBox(width: 30),
-
-                            Radio<String>(
-                              value: 'en',
-                              activeColor: Colors.deepOrange,
-                              groupValue: langProvider.locale.languageCode,
-                              onChanged: (value) {
-                                context.read<LanguageProvider>().changeLanguage(
-                                  value!,
-                                );
-                              },
-                            ),
-                            const Text('English'),
-                          ],
-                        ),
-                        SizedBox(height: 10),
-                        Text(
-                          'Latest Version : 1.5 Date: 20/11/2025 11:23:48 am',
-                          style: TextStyle(fontSize: 11),
-                        ),
-                      ],
-                    ),
+          SizedBox(width: 60, child: Center(child: _buildBannerIcon(icon))),
+          const SizedBox(width: 8),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                Text(
+                  title,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Color(0xFF149C22),
+                    fontWeight: FontWeight.w700,
+                    fontSize: 13,
+                    height: 1.25,
                   ),
                 ),
-              ),
+                const SizedBox(height: 4),
+                Text(
+                  description,
+                  maxLines: 6,
+                  overflow: TextOverflow.ellipsis,
+                  style: const TextStyle(
+                    color: Colors.black,
+                    fontSize: 11,
+                    fontWeight: FontWeight.w400,
+                    height: 1.2,
+                  ),
+                ),
+              ],
             ),
           ),
         ],
       ),
     );
   }
+
+  Widget _buildBannerIcon(IconData icon) {
+    return SizedBox(
+      width: 52,
+      height: 52,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          CustomPaint(
+            size: const Size(50, 50),
+            painter: _ScallopedCirclePainter(),
+          ),
+          Container(
+            width: 34,
+            height: 34,
+            decoration: const BoxDecoration(
+              shape: BoxShape.circle,
+              color: Color(0xFFE7E7E7),
+            ),
+            child: Icon(icon, color: const Color(0xFF4A3942), size: 22),
+          ),
+        ],
+      ),
+    );
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    getOSVersion();
+    loadSavedCredentials();
+    _startBannerTimer();
+  }
+
+  @override
+  void dispose() {
+    _bannerTimer?.cancel();
+    _bannerController.dispose();
+    _usernameController.dispose();
+    _passwordController.dispose();
+    _mobileController.dispose();
+    super.dispose();
+  }
+
+  // ---------------- Sign-in mode toggle + OTP tab ----------------
+
+  void _switchMode(String mode) {
+    if (_loginMode == mode) return;
+    setState(() {
+      _loginMode = mode;
+      _usernameController.clear();
+      _passwordController.clear();
+      _mobileController.clear();
+      _formKey.currentState?.reset();
+    });
+  }
+
+  Widget _buildSegmentedToggle(AppLocalizations t) {
+    return Container(
+      padding: const EdgeInsets.all(4),
+      decoration: BoxDecoration(
+        color: const Color(0xFFECECEC),
+        borderRadius: BorderRadius.circular(30),
+      ),
+      child: Row(
+        children: [
+          Expanded(child: _segment(t.translate('sign_in_with_otp'), 'otp')),
+          Expanded(
+            child: _segment(t.translate('sign_in_with_username'), 'username'),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _segment(String label, String mode) {
+    final bool selected = _loginMode == mode;
+    return GestureDetector(
+      onTap: () => _switchMode(mode),
+      child: AnimatedContainer(
+        duration: const Duration(milliseconds: 200),
+        padding: const EdgeInsets.symmetric(vertical: 13),
+        alignment: Alignment.center,
+        decoration: BoxDecoration(
+          gradient:
+              selected
+                  ? const LinearGradient(
+                    colors: [Color(0xFF35B3DE), Color(0xFF1189C6)],
+                    begin: Alignment.centerLeft,
+                    end: Alignment.centerRight,
+                  )
+                  : null,
+          borderRadius: BorderRadius.circular(30),
+          boxShadow:
+              selected
+                  ? [
+                    BoxShadow(
+                      color: const Color(0xFF1189C6).withOpacity(0.35),
+                      blurRadius: 8,
+                      offset: const Offset(0, 3),
+                    ),
+                  ]
+                  : null,
+        ),
+        child: Text(
+          label,
+          textAlign: TextAlign.center,
+          style: TextStyle(
+            color: selected ? Colors.white : Colors.black87,
+            fontWeight: selected ? FontWeight.w600 : FontWeight.w500,
+            fontSize: 10,
+          ),
+        ),
+      ),
+    );
+  }
+
+  Widget _otpMobileField(AppLocalizations t) {
+    // Mirrors AppTextfield's look (used by the Username field) so both tabs
+    // match; adds the non-editable "+91 " prefix and digits-only input.
+    return TextFormField(
+      autovalidateMode: AutovalidateMode.onUserInteraction,
+      controller: _mobileController,
+      keyboardType: TextInputType.number,
+      cursorColor: kBlackColor,
+      maxLength: 10,
+      inputFormatters: [FilteringTextInputFormatter.digitsOnly],
+      style: const TextStyle(color: Colors.black87, fontSize: 12),
+      decoration: InputDecoration(
+        counterText: '',
+        labelText: t.translate('mobile_no'),
+        hintText: t.translate('mobile_no'),
+        labelStyle: const TextStyle(fontSize: 13),
+        hintStyle: const TextStyle(fontSize: 13),
+        floatingLabelBehavior: FloatingLabelBehavior.auto,
+        filled: true,
+        fillColor: kWhiteColor,
+        prefixIcon: ShaderMask(
+          shaderCallback:
+              (bounds) => const LinearGradient(
+                colors: [Color(0xFF00BCD4), Color(0xFF2196F3)],
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
+              ).createShader(bounds),
+          child: const Icon(Icons.phone_android, color: Colors.white),
+        ),
+        prefixText: '+91 ',
+        prefixStyle: const TextStyle(
+          color: Colors.black87,
+          fontSize: 13,
+          fontWeight: FontWeight.w600,
+        ),
+        contentPadding: const EdgeInsets.symmetric(
+          horizontal: 16,
+          vertical: 14,
+        ),
+        border: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.grey),
+        ),
+        enabledBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.grey),
+        ),
+        focusedBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: kPrimaryDarkColor),
+        ),
+        errorBorder: OutlineInputBorder(
+          borderRadius: BorderRadius.circular(14),
+          borderSide: const BorderSide(color: Colors.red),
+        ),
+      ),
+      validator:
+          (v) =>
+              RegExp(r'^[6-9]\d{9}$').hasMatch(v?.trim() ?? '')
+                  ? null
+                  : t.translate('enter_valid_mobile'),
+    );
+  }
+
+  Future<void> _sendOtp() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
+    FocusScope.of(context).unfocus();
+    final t = AppLocalizations.of(context);
+    final mobile = _mobileController.text.trim();
+
+    setState(() => isLoading = true);
+    try {
+      final response = await http.post(
+        Uri.parse('$login_baseurl$LOGIN_BY_MOBILE'),
+        headers: {'Content-Type': 'application/json'},
+        body: jsonEncode({'mobileNo': mobile}),
+      );
+      debugPrint('LOGIN-BY-MOBILE ${response.statusCode} -> ${response.body}');
+
+      Map<String, dynamic> body;
+      try {
+        body = jsonDecode(response.body) as Map<String, dynamic>;
+      } catch (_) {
+        _showError(t.translate('otp_send_failed'));
+        return;
+      }
+      final msg = (body['message'] ?? '').toString();
+
+      if (response.statusCode == 200 && msg.toLowerCase() == 'success') {
+        if (mounted) await _openOtpDialog(mobile);
+        return;
+      }
+      if (msg.toLowerCase().contains('user not found')) {
+        _showError(t.translate('mobile_not_registered'));
+        return;
+      }
+      _showError(msg.isNotEmpty ? msg : t.translate('otp_send_failed'));
+    } catch (e) {
+      debugPrint('LOGIN-BY-MOBILE ERROR -> $e');
+      _showError(t.translate('otp_send_failed'));
+    } finally {
+      if (mounted) setState(() => isLoading = false);
+    }
+  }
+
+  Future<void> _openOtpDialog(String mobile) async {
+    final t = AppLocalizations.of(context);
+    final authData = await showDialog<Map<String, dynamic>>(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (_) => OtpEntryDialog(mobile: mobile, osVersion: osVersion ?? ''),
+    );
+
+    if (authData == null || !mounted) return;
+
+    await showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder:
+          (_) => SuccessDialog(
+            message: t.translate('otp_verified'),
+            buttonText: t.translate('ok'),
+          ),
+    );
+
+    if (!mounted) return;
+    await _handleAuthSuccess(authData, skipPasswordReset: true);
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final t = AppLocalizations.of(context);
+    final langProvider = context.watch<LanguageProvider>();
+
+    // Keep the login card close to the design when the device font size is
+    // turned up — a large system scale otherwise overflows the fixed-height
+    // card. Content still scrolls. Presentational only.
+    return MediaQuery.withClampedTextScaling(
+      maxScaleFactor: 1.15,
+      child: Scaffold(
+        body: Stack(
+          children: [
+            // Background image
+            SizedBox.expand(child: Image.asset(background, fit: BoxFit.cover)),
+
+            // Login form card
+            Align(
+              alignment: Alignment.bottomCenter,
+              child: SingleChildScrollView(
+                child: SafeArea(
+                  // ✅ Fix: respects navigation bar & notch
+                  top: false, // keep only bottom safe padding
+                  child: Container(
+                    margin: const EdgeInsets.fromLTRB(15, 36, 15, 0),
+                    padding: const EdgeInsets.all(20),
+                    decoration: BoxDecoration(
+                      color: Colors.white,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(24),
+                        topRight: Radius.circular(24),
+                      ),
+                    ),
+                    child: Form(
+                      key: _formKey,
+                      child: Column(
+                        children: [
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              Image.asset(secondLog, width: 100),
+                              Image.asset(logo, width: 126),
+                            ],
+                          ),
+                          const SizedBox(height: 12),
+                          const Text(
+                            'MPCB-BMW Management',
+                            style: TextStyle(
+                              fontSize: 18,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 8),
+                          Text(
+                            t.translate('sign_in'),
+                            style: TextStyle(
+                              fontSize: 20,
+                              fontWeight: FontWeight.bold,
+                            ),
+                          ),
+                          const SizedBox(height: 12),
+
+                          _buildSegmentedToggle(t),
+                          const SizedBox(height: 20),
+
+                          if (_loginMode == 'otp') ...[
+                            _otpMobileField(t),
+                            const SizedBox(height: 20),
+                          ] else ...[
+                            AppTextfield(
+                              hintText: t.translate('username'),
+                              controller: _usernameController,
+                              prefixIcon: Icons.person_outline_outlined,
+                              validator:
+                                  (value) =>
+                                      value == null || value.isEmpty
+                                          ? 'Please enter username'
+                                          : null,
+                            ),
+                            const SizedBox(height: 16),
+                            AppTextfield(
+                              controller: _passwordController,
+                              prefixIcon: Icons.lock_outline,
+                              obscureText: true,
+                              validator:
+                                  (value) =>
+                                      value == null || value.isEmpty
+                                          ? 'Enter password'
+                                          : null,
+                              hintText: t.translate('password'),
+                            ),
+                            const SizedBox(height: 6),
+                            Row(
+                              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                              children: [
+                                // TextButton(
+                                //   onPressed: () {
+                                //     Navigator.push(
+                                //       context,
+                                //       MaterialPageRoute(
+                                //         builder:
+                                //             (context) => NewHCFRegisterScreen(),
+                                //       ),
+                                //     );
+                                //   },
+                                //   child: Text(
+                                //     t.translate('new_hcf'),
+                                //     style: const TextStyle(
+                                //       color: Color(0xFF2196F3),
+                                //       fontSize: 11,
+                                //     ),
+                                //   ),
+                                // ),
+                                TextButton(
+                                  onPressed: () {
+                                    Navigator.push(
+                                      context,
+                                      MaterialPageRoute(
+                                        builder:
+                                            (context) => ResetPasswordScreen(),
+                                      ),
+                                    );
+                                  },
+                                  child: Text(
+                                    t.translate('forgot_password'),
+                                    style: const TextStyle(
+                                      color: Colors.grey,
+                                      fontSize: 11,
+                                    ),
+                                  ),
+                                ),
+                              ],
+                            ),
+                          ],
+
+                          SizedBox(
+                            width: double.infinity,
+                            child: AppButton(
+                              text:
+                                  _loginMode == 'otp'
+                                      ? t.translate('send_otp')
+                                      : t.translate('sign_in'),
+                              onPressed: () {
+                                if (_loginMode == 'otp') {
+                                  _sendOtp();
+                                } else {
+                                  _login(
+                                    _usernameController.text,
+                                    _passwordController.text,
+                                  );
+                                }
+                              },
+                              isLoading: isLoading,
+                              color: Colors.deepOrange,
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 5,
+                                horizontal: 18,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 10),
+                          SizedBox(
+                            width: double.infinity,
+                            child: AppButton(
+                              text: t.translate('self_registration'),
+                              onPressed:
+                                  () => openSelfRegistrationFlow(context),
+                              color: const Color(0xFF1597D0),
+                              padding: const EdgeInsets.symmetric(
+                                vertical: 5,
+                                horizontal: 18,
+                              ),
+                            ),
+                          ),
+                          SizedBox(height: 8),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.center,
+                            children: [
+                              Radio<String>(
+                                value: 'mr',
+                                activeColor: Colors.deepOrange,
+                                groupValue: langProvider.locale.languageCode,
+                                onChanged: (value) {
+                                  context
+                                      .read<LanguageProvider>()
+                                      .changeLanguage(value!);
+                                },
+                              ),
+                              const Text('मराठी'),
+
+                              SizedBox(width: 30),
+
+                              Radio<String>(
+                                value: 'en',
+                                activeColor: Colors.deepOrange,
+                                groupValue: langProvider.locale.languageCode,
+                                onChanged: (value) {
+                                  context
+                                      .read<LanguageProvider>()
+                                      .changeLanguage(value!);
+                                },
+                              ),
+                              const Text('English'),
+                            ],
+                          ),
+                          SizedBox(height: 10),
+                          _buildInformationBanner(t),
+                          SizedBox(height: 10),
+                          Text(
+                            'Version $appVersion ',
+                            style: TextStyle(fontSize: 11),
+                          ),
+                        ],
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+}
+
+// ---------------------------------------------------------------------------
+// Scalloped (flower-edge) green circle behind the banner icon.
+// ---------------------------------------------------------------------------
+class _ScallopedCirclePainter extends CustomPainter {
+  @override
+  void paint(Canvas canvas, Size size) {
+    final Paint paint =
+        Paint()
+          ..color = const Color(0xFF38D56A)
+          ..style = PaintingStyle.fill;
+
+    final Offset center = Offset(size.width / 2, size.height / 2);
+    final double outerRadius = size.width / 2;
+    final Path path = Path();
+    const int points = 24;
+
+    for (int i = 0; i < points; i++) {
+      final double angle = (2 * pi * i) / points - pi / 2;
+      final double radius = i.isEven ? outerRadius : outerRadius - 4;
+      final double x = center.dx + radius * cos(angle);
+      final double y = center.dy + radius * sin(angle);
+      if (i == 0) {
+        path.moveTo(x, y);
+      } else {
+        path.lineTo(x, y);
+      }
+    }
+    path.close();
+    canvas.drawPath(path, paint);
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }

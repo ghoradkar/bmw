@@ -8,14 +8,20 @@ plugins {
     id("dev.flutter.flutter-gradle-plugin")
 }
 
+val keystoreProperties = Properties()
+val keystorePropertiesFile = rootProject.file("key.properties")
+if (keystorePropertiesFile.exists()) {
+    keystoreProperties.load(FileInputStream(keystorePropertiesFile))
+}
+
 android {
-    namespace = "com.bmw.app"
-    compileSdk = 35
+    namespace = "com.app.bmw"
+    compileSdk = 36
 
     defaultConfig {
-        applicationId = "com.bmw.app"
+        applicationId = "com.app.bmw"
         minSdk = 24
-        targetSdk = 35
+        targetSdk = 36
         versionCode = flutter.versionCode
         versionName = flutter.versionName
     }
@@ -32,17 +38,18 @@ android {
     kotlin {
         jvmToolchain(17)
     }
-//    signingConfigs {
-//        create("release") {
-//            keyAlias = keystoreProperties["keyAlias"] as String
-//            keyPassword = keystoreProperties["keyPassword"] as String
-//            storeFile = file(keystoreProperties["storeFile"] as String)
-//            storePassword = keystoreProperties["storePassword"] as String
-//        }
-//    }
+    signingConfigs {
+        create("release") {
+            keyAlias = keystoreProperties["keyAlias"] as String?
+            keyPassword = keystoreProperties["keyPassword"] as String?
+            storeFile = (keystoreProperties["storeFile"] as String?)?.let { rootProject.file(it) }
+            storePassword = keystoreProperties["storePassword"] as String?
+        }
+    }
     buildTypes {
         release {
-            signingConfig = signingConfigs.getByName("debug")
+            signingConfig = signingConfigs.getByName("release")
+//            signingConfig = signingConfigs.getByName("debug")
 
             isMinifyEnabled = true
             isShrinkResources = true
@@ -101,9 +108,7 @@ dependencies {
 //    signingConfigs {
 //        release {
 //            storeFile file("bmw.jks")
-//            storePassword "Pass@123"
 //            keyAlias "key0"
-//            keyPassword "Pass@123"
 //        }
 //    }
 //

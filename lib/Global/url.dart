@@ -1,22 +1,24 @@
-const String appVersion = "1.5";
+const String appVersion = "1.1";
 //test
-String baseurl2='http://210.89.42.103:8080/MpcbAPi-Project/api/bioWaste/';//test
-String login_baseurl2='http://210.89.42.103:8080/MpcbAPi-Project/api/';
-String masterurl2='http://210.89.42.103:8080/MpcbAPi-Project/api/masters/';
+String baseurl='http://210.89.42.103:8080/MpcbAPi-Project/api/bioWaste/';//test
+String login_baseurl='http://210.89.42.103:8080/MpcbAPi-Project/api/';
+String masterurl='http://210.89.42.103:8080/MpcbAPi-Project/api/masters/';
 
 //dev
-String baseurl1='http://103.251.94.10:8080/MpcbAPi-Project/api/bioWaste/';//dev
-String login_baseurl1='http://103.251.94.10:8080/MpcbAPi-Project/api/';
-String masterurl1='http://103.251.94.10:8080/MpcbAPi-Project/api/masters/';
+String baseurl2='http://103.251.94.10:8080/MpcbAPi-Project/api/bioWaste/';//dev
+String login_baseurl2='http://103.251.94.10:8080/MpcbAPi-Project/api/';
+String masterurl2='http://103.251.94.10:8080/MpcbAPi-Project/api/masters/';
 
 //prod
 
-String baseurl='http://103.228.151.87:8080/MpcbAPi-Project/api/bioWaste/';//prod
-String login_baseurl='http://103.228.151.87:8080/MpcbAPi-Project/api/';
-String masterurl='http://103.228.151.87:8080/MpcbAPi-Project/api/masters/';
+String baseurl1='http://103.228.151.87:8080/MpcbAPi-Project/api/bioWaste/';//prod
+String login_baseurl1='http://103.228.151.87:8080/MpcbAPi-Project/api/';
+String masterurl1='http://103.228.151.87:8080/MpcbAPi-Project/api/masters/';
 
 
 String LOGIN = "auth/login";
+String LOGIN_BY_MOBILE = "auth/login-by-mobile";
+String VERIFY_MOBILE_OTP = "auth/verify-mobile-otp";
 String LOGOUT='auth/logout';
 
 //master
@@ -25,6 +27,9 @@ String ROLE_TYPE='lookupdet/';
 String HCF_TYPE='users/gethcfType';
 String GET_DATA_BY_PINCODE='users/getDetByPincode/';
 String NEW_HCF_REGISTRATION='users/saveNewHcf';
+String SELF_REGISTRATION='users/save-user-temp-survey';
+String SEARCH_SELF_REGISTRATION='users/search/self-registration/user-by-mobile';
+String SEND_OTP_SELF_REGISTRATION='users/search-registration/by-otp';
 
 //biowaste
 

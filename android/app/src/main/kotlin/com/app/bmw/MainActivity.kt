@@ -1,4 +1,4 @@
-package com.bmw.app
+package com.app.bmw
 
 import io.flutter.embedding.android.FlutterActivity
 

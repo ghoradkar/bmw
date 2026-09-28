@@ -1,4 +1,5 @@
-const String logo = "assets/images/applogo.png";
+const String logo = "assets/images/applogo.jpeg";
+const String secondLog = "assets/images/logoo.png";
 const String background='assets/images/biowaste_background.png';
 const String appbar='assets/images/appbar.png';
 const String success='assets/images/done.png';
