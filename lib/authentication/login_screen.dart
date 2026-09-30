@@ -35,9 +35,10 @@ import '../localization/provider.dart';
 import 'forget_password.dart';
 
 class LoginScreen extends StatefulWidget {
-  final String reset;
+  // final String reset;
 
-  const LoginScreen(this.reset, {super.key});
+  const LoginScreen({super.key});
+  // const LoginScreen(this.reset, {super.key});
 
   @override
   _LoginScreenState createState() => _LoginScreenState();
@@ -288,8 +289,14 @@ class _LoginScreenState extends State<LoginScreen> {
     final user = data['tmUsers'];
     final prefs = await SharedPreferences.getInstance();
 
-    // 💾 Save user data
-    await prefs.setBool("isLoggedIn", true);
+    // First-login users must reset their password before a session is
+    // persisted; otherwise killing the app on the reset screen would let
+    // the splash screen open the dashboard on next launch.
+    final bool mustResetPassword =
+        !skipPasswordReset && user['firstLogin'] == null;
+
+    // 💾 Save user data (Token/UserId are needed by the reset-password API)
+    await prefs.setBool("isLoggedIn", !mustResetPassword);
     await prefs.setString('UserId', user['userId'].toString());
     await prefs.setString(
       'username',
@@ -301,14 +308,19 @@ class _LoginScreenState extends State<LoginScreen> {
     _setUser(user);
 
     userRole = await GetUserType(user['lookupDetIdRoleType']);
-    await prefs.setString('userRole', userRole ?? '');
+    if (mustResetPassword) {
+      await prefs.remove('userRole');
+    } else {
+      await prefs.setString('userRole', userRole ?? '');
+    }
 
     if (!context.mounted) return;
 
     // 🔐 Redirect
     final bool isTempSurveyUser = user['tempSurveyHcfUser'] == 'Y';
 
-    if (!skipPasswordReset && user['floginPwreset'] != 'N') {
+    // if (!skipPasswordReset && user['floginPwreset'] != 'N') {
+    if (mustResetPassword) {
       Navigator.push(
         context,
         MaterialPageRoute(builder: (context) => ResetPasswordScreen()),
@@ -855,7 +867,7 @@ class _LoginScreenState extends State<LoginScreen> {
     final t = AppLocalizations.of(context);
     final authData = await showDialog<Map<String, dynamic>>(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder:
           (_) => OtpEntryDialog(mobile: mobile, osVersion: osVersion ?? ''),
     );

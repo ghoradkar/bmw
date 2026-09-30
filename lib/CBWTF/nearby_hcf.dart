@@ -4,8 +4,8 @@ import 'package:device_info_plus/device_info_plus.dart';
 import 'package:flutter/material.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:intl/intl.dart';
-import 'package:mpcb_bio_waste/CBWTF/apiservice.dart';
 import 'package:mpcb_bio_waste/CBWTF/get_bio_waste_data.dart';
+import 'package:mpcb_bio_waste/CBWTF/selected_hcfs_assign.dart';
 import 'package:mpcb_bio_waste/Global/url.dart';
 import 'package:mpcb_bio_waste/Localization/app_localization.dart';
 import 'package:mpcb_bio_waste/authentication/login_screen.dart';
@@ -13,7 +13,6 @@ import 'package:provider/provider.dart';
 
 import '../Global/AppDrawer.dart';
 import '../Global/app_bar.dart';
- import '../Global/app_dialog.dart';
 import '../Global/app_dropdown.dart';
 import '../Global/app_routes.dart';
 import '../Global/constant.dart';
@@ -44,12 +43,12 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
   Set<Marker> _markers = {};
   Set<Circle> _circles = {};
   List<dynamic> hcfList = [];
-  bool isLoading=true;
+  bool isLoading = true;
   List<LatLng> _polygonPoints = [];
   Set<Polygon> _polygons = {};
   Set<Marker> _polygonMarkers = {};
   Set<Marker> _allMarkers = {}; // Keep all fetched marker
-  bool _isDrawing = false;// for draggable polygon markers
+  bool _isDrawing = false; // for draggable polygon markers
   String? osVersion;
   final GlobalKey<ScaffoldState> _scaffoldKey = GlobalKey<ScaffoldState>();
   DateTime? rangeStartDate;
@@ -57,21 +56,19 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
   bool showCalendar = false;
   MapType _currentMapType = MapType.normal;
   bool _isSatellite = false; // Track current map type
-  List <Map<String,dynamic>>vehicleList=[];
-  Map<String,dynamic>? selectedVehicle;
-  bool _isLoading=false;
-  String? totalhcf='0.0';
+  List<Map<String, dynamic>> vehicleList = [];
+  Map<String, dynamic>? selectedVehicle;
+  bool _isLoading = false;
+  String? totalhcf = '0.0';
+
   // String? totalweight='0.0';
-   String? totalBags='0.0';
+  String? totalBags = '0.0';
   Set<int> _selectedHcfIds = {}; // selected HCFs
   List<Map<String, dynamic>> _selectedHcfs = [];
   Map<int, Map<String, dynamic>> _groupedHcfMap = {};
 
-
   double totalWeight = 0;
   double totalBagsCount = 0;
-
-
 
   Future<DateTime?> _pickDate(BuildContext context) {
     return showDatePicker(
@@ -81,6 +78,7 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
       lastDate: DateTime.now(),
     );
   }
+
   Future<void> fetchVehicle() async {
     setState(() => _isLoading = true);
 
@@ -121,7 +119,7 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
       final body = {
         "scheduleFromDate": startDate,
         "scheduleToDate": endDate,
-        "userId": userId
+        "userId": userId,
       };
 
       final response = await http.post(
@@ -185,7 +183,8 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
 
     try {
       Position position = await Geolocator.getCurrentPosition(
-          desiredAccuracy: LocationAccuracy.high);
+        desiredAccuracy: LocationAccuracy.high,
+      );
       setState(() {
         _center = LatLng(position.latitude, position.longitude);
         isLoading = false;
@@ -194,8 +193,10 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
       DateTime now = DateTime.now();
       DateTime fromDate = DateTime(now.year, now.month - 1, now.day);
 
-      fetchNearbyHCFs(fromDate.toString().substring(0, 10),
-          now.toString().substring(0, 10));
+      fetchNearbyHCFs(
+        fromDate.toString().substring(0, 10),
+        now.toString().substring(0, 10),
+      );
     } catch (e) {
       _showError('Failed to get location');
     }
@@ -204,7 +205,7 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
   Future<void> fetchNearbyHCFs(String startDate, String endDate) async {
     try {
       setState(() {
-        isLoading=true;
+        isLoading = true;
       });
       final prefs = await SharedPreferences.getInstance();
       final token = prefs.getString('Token') ?? '';
@@ -225,7 +226,7 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
         //body: jsonEncode(body),
       );
       print('${baseurl}${CBWTF_MAP}$userId');
-     // print(body);
+      // print(body);
       print(response.body);
       print(response.statusCode);
 
@@ -236,17 +237,17 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
         _generateMarkers();
         _prepareGroupedHcfData();
         setState(() {
-          isLoading=false;
+          isLoading = false;
         });
       } else if (response.statusCode == 401) {
         AuthService().logout(context);
         setState(() {
-          isLoading=false;
+          isLoading = false;
         });
       }
     } catch (e) {
       setState(() {
-        isLoading=false;
+        isLoading = false;
       });
       print('Error fetching HCFs: $e');
     }
@@ -300,9 +301,7 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
             markerId: MarkerId(hcfId.toString()),
             position: LatLng(lat, lng),
             icon: BitmapDescriptor.defaultMarkerWithHue(
-              isSelected
-                  ? BitmapDescriptor.hueGreen
-                  : BitmapDescriptor.hueRed,
+              isSelected ? BitmapDescriptor.hueGreen : BitmapDescriptor.hueRed,
             ),
             onTap: () => _onMarkerTap(hcf),
             infoWindow: InfoWindow(title: hcf['nameOfHcf']),
@@ -338,10 +337,8 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
     for (var hcf in hcfList) {
       final int hcfId = hcf['hcfId'];
 
-      final double qty =
-      (hcf['totalQtyinBag'] ?? 0).toDouble();
-      final int bags =
-      (hcf['totalNoBag'] ?? 0).toInt();
+      final double qty = (hcf['totalQtyinBag'] ?? 0).toDouble();
+      final int bags = (hcf['totalNoBag'] ?? 0).toInt();
 
       if (_groupedHcfMap.containsKey(hcfId)) {
         _groupedHcfMap[hcfId]!['totalQtyinBag'] += qty;
@@ -355,7 +352,6 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
       }
     }
   }
-
 
   // void _onMarkerTap(Map<String, dynamic> hcf) {
   //   final hcfId = hcf['hcfId'];
@@ -378,7 +374,7 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
     setState(() {
       if (_selectedHcfIds.contains(hcfId)) {
         _selectedHcfIds.remove(hcfId);
-        _selectedHcfs.removeWhere((e ) => e['hcfId'] == hcfId);
+        _selectedHcfs.removeWhere((e) => e['hcfId'] == hcfId);
       } else {
         _selectedHcfIds.add(hcfId);
         _selectedHcfs.add(hcf);
@@ -427,7 +423,6 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
     totalBags = bagSum.toString();
   }
 
-
   // void _calculateTotals() {
   //   double weightSum = 0;
   //   double bagSum = 0;
@@ -455,10 +450,11 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
       final LatLng b = polygon[i + 1];
 
       if (((a.latitude > point.latitude) != (b.latitude > point.latitude)) &&
-          (point.longitude < (b.longitude - a.longitude) *
-              (point.latitude - a.latitude) /
-              (b.latitude - a.latitude) +
-              a.longitude)) {
+          (point.longitude <
+              (b.longitude - a.longitude) *
+                      (point.latitude - a.latitude) /
+                      (b.latitude - a.latitude) +
+                  a.longitude)) {
         intersectCount++;
       }
     }
@@ -507,7 +503,6 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
     _generateMarkers();
   }
 
-
   void _onMapTap(LatLng position) {
     setState(() {
       _polygonPoints.add(position);
@@ -516,7 +511,9 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
           markerId: MarkerId('polygon_${_polygonPoints.length}'),
           position: position,
           draggable: true,
-          icon: BitmapDescriptor.defaultMarkerWithHue(BitmapDescriptor.hueAzure),
+          icon: BitmapDescriptor.defaultMarkerWithHue(
+            BitmapDescriptor.hueAzure,
+          ),
           onDragEnd: (newPosition) {
             final index = _polygonPoints.indexOf(position);
             if (index != -1) {
@@ -554,17 +551,13 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
 
   void _filterMarkersWithinPolygon() {
     _selectHcfsInsidePolygon(_polygonPoints);
-
   }
 
   void _showError(String msg) {
-    ScaffoldMessenger.of(context).showSnackBar(
-      SnackBar(content: Text(msg), backgroundColor: Colors.red),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(SnackBar(content: Text(msg), backgroundColor: Colors.red));
   }
-
-
-
 
   @override
   Widget build(BuildContext context) {
@@ -572,290 +565,376 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
     final t = AppLocalizations.of(context);
     final langProvider = context.watch<LanguageProvider>();
     return StreamProvider<NetworkStatus>(
-        create: (context) =>
-        NetworkStatusService().networkStatusController.stream,
-        initialData: NetworkStatus.Online,
-        child: NetworkAwareWidget(
-        onlineChild:Scaffold(
-        key: _scaffoldKey,
+      create:
+          (context) => NetworkStatusService().networkStatusController.stream,
+      initialData: NetworkStatus.Online,
+      child: NetworkAwareWidget(
+        onlineChild: Scaffold(
+          key: _scaffoldKey,
 
-      drawer: AppDrawer(),
-      body: SingleChildScrollView(child:Stack(
-        children: [
-          /// Custom Gradient AppBar
-          mAppBar(
-            scTitle:  t.translate('cbwtf_vehicle_assigning'),
-            centerTile: true,
+          drawer: AppDrawer(),
+          body: SingleChildScrollView(
+            child: Stack(
+              children: [
+                /// Custom Gradient AppBar
+                mAppBar(
+                  scTitle: t.translate('cbwtf_vehicle_assigning'),
+                  centerTile: true,
 
-            //onLeadingIconClick: () => Navigator.pop(context),
-            leadingWidget: Builder(
-              builder: (context) => IconButton(
-                icon: const Icon(Icons.menu, color: Colors.white),
-                onPressed: () => Scaffold.of(context).openDrawer(),
-              ),
-            ),
-            showLeading: true,
-            showActions: true,
-            actions: [IconButton(onPressed: (){
-              _openFilterBottomSheet(context,t);
-            }, icon: Icon(Icons.filter_alt_outlined,color: kWhiteColor,))]
-          ),
-
-
-          /// Body with tabs
-          Positioned.fill(
-            top: responsiveHeight(110),
-            bottom: responsiveHeight(
-              0,
-            ), // offset to appear below custom app bar
-            child: Container(
-              decoration: BoxDecoration(
-                color: kWhiteColor,
-                borderRadius: const BorderRadius.only(
-                  topRight: Radius.circular(40),
-                  topLeft: Radius.circular(40),
-                ),
-              ),
-              child:  isLoading||_isLoading?Center(child: CircularProgressIndicator(color: kPrimaryColor,),):
-              Column(
-                children: [
-                  SizedBox(height: responsiveHeight(10)),
-                  // Padding(padding:EdgeInsets.only(left: 20,right: 20,top: 10,bottom: 10), child:validatedApiDropdown(
-                  //   hint: "Assign Vehicle",
-                  //   value: selectedVehicle,
-                  //   items:vehicleList,
-                  //   displayKey: "vehicleNo",
-                  //   icon: Icons.fire_truck_outlined,
-                  //   errorText: "Please select HCF type",
-                  //   onChanged: (v) => setState(() => selectedVehicle = v),
-                  // ))
-                  // ,
-                  Padding(
-                    padding: const EdgeInsets.only(left: 20, right: 20, top: 10, bottom: 10),
-                    child: InkWell(
-                      onTap: () {
-                        _openVehicleBottomSheet(context,t);
+                  //onLeadingIconClick: () => Navigator.pop(context),
+                  leadingWidget: Builder(
+                    builder:
+                        (context) => IconButton(
+                          icon: const Icon(Icons.menu, color: Colors.white),
+                          onPressed: () => Scaffold.of(context).openDrawer(),
+                        ),
+                  ),
+                  showLeading: true,
+                  showActions: true,
+                  actions: [
+                    IconButton(
+                      onPressed: () {
+                        _openFilterBottomSheet(context, t);
                       },
-                      child: IgnorePointer(
-                        child: Container(
-                          decoration: BoxDecoration(
-                            borderRadius: BorderRadius.circular(14),
-                            color: Colors.grey.shade200,
-                          ),
-
-                          child:validatedApiDropdown(
-                          color: Colors.grey.shade500,
-                          hint:  t.translate('assign_vehicle'),
-                          value: selectedVehicle,
-                          items: vehicleList,
-                          displayKey: "vehicleNo",
-                          icon: Icons.fire_truck_outlined,
-                          errorText: "Please select HCF type",
-                          onChanged: (v) {}, // handled via bottom sheet
-                        ),
-                      )),
+                      icon: Icon(Icons.filter_alt_outlined, color: kWhiteColor),
                     ),
-                  ),
-              Padding(
-                  padding: const EdgeInsets.only(left: 10, right: 10, ),
-                  child:Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [
-                    Container(
-                      margin:EdgeInsets.all(5),
-                      padding: EdgeInsets.all(5),
-                      height: 90,
-                      width:90,
-                      decoration: BoxDecoration(
-                        border: Border.all(color: Colors.grey.shade500),
-                          borderRadius: BorderRadius.all(Radius.circular(10))),
-                      child: Column(children: [
-                      Icon(Icons.local_hospital_outlined,color: kPrimaryColor,),
-                      Text( t.translate('total_hcf'),style: TextStyle(fontSize: 10),),
-                      Text(totalhcf!),
-                      
+                  ],
+                ),
 
-                    ],),),
-                    Container(
-                      margin:EdgeInsets.all(5),
-                      padding: EdgeInsets.all(5),
-                      height: 90,
-                     // width:100,
-                      decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade500),
-                          borderRadius: BorderRadius.all(Radius.circular(10))),
-                      child: Column(children: [
-                        Icon(Icons.transfer_within_a_station,color: kPrimaryColor,),
-                        Text( t.translate('total_weight'),style: TextStyle(fontSize: 10),),
-                        Text('${totalWeight!} Kg'),
-
-
-                      ],),),
-                    Container(
-                      margin:EdgeInsets.all(5),
-                      padding: EdgeInsets.all(5),
-                      height: 90,
-                    //  width:100,
-                      decoration: BoxDecoration(
-                          border: Border.all(color: Colors.grey.shade500),
-                          borderRadius: BorderRadius.all(Radius.circular(10))),
-                      child: Column(
-                        crossAxisAlignment: CrossAxisAlignment.center,
-                        children: [
-                        Icon(Icons.shopping_bag_outlined,color: kPrimaryColor,),
-                        Text( t.translate('total_bags'),style: TextStyle(fontSize: 10),),
-                        Text(totalBags!),
-
-
-                      ],),)
-
-
-
-                  ],),),
-
-
-
-
-
-                  SizedBox(
-                    height: responsiveHeight(520),
-                    child:
-
-                          SizedBox(
-                            height: MediaQuery.of(context).size.height,
-                            child: Padding(
-                      padding: EdgeInsets.only(top: 10,left: 10,right: 10,bottom: 10),
-                      child: Stack(
-                          children: [GoogleMap(
-
-                      onMapCreated: (controller) => _mapController = controller,
-                      initialCameraPosition: CameraPosition(
-                        target: _center!,
-                        zoom: 13,
+                /// Body with tabs
+                Positioned.fill(
+                  top: responsiveHeight(110),
+                  bottom: responsiveHeight(
+                    0,
+                  ), // offset to appear below custom app bar
+                  child: Container(
+                    decoration: BoxDecoration(
+                      color: kWhiteColor,
+                      borderRadius: const BorderRadius.only(
+                        topRight: Radius.circular(40),
+                        topLeft: Radius.circular(40),
                       ),
-
-                      markers: _markers.union(_polygonMarkers),
-                      polygons: _polygons,
-                        mapType: _isSatellite ? MapType.satellite : MapType.normal,
-                     // circles: _circles,
-                      onTap: _onMapTap,
-                      // onLongPress: (LatLng latLng) {
-                      //   if (_isDrawing) {
-                      //     setState(() {
-                      //       _polygonPoints.add(latLng);
-                      //       _polygons = {
-                      //         Polygon(
-                      //           polygonId: PolygonId('drawn_area'),
-                      //           points: _polygonPoints,
-                      //           strokeColor: Colors.blue,
-                      //           fillColor: Colors.blue.withOpacity(0.2),
-                      //           strokeWidth: 2,
-                      //         ),
-                      //       };
-                      //     });
-                      //   }
-                      // },
-
-
-                      myLocationEnabled: true,
                     ),
-                    Positioned(
-                      top: 60,
-                      right: 10,
-                      child: Container(
-                        height: 40,
-                        width: 40,
-                        decoration: BoxDecoration(
-                          color: kWhiteColor.withOpacity(0.7),
+                    child:
+                        isLoading || _isLoading
+                            ? Center(
+                              child: CircularProgressIndicator(
+                                color: kPrimaryColor,
+                              ),
+                            )
+                            : Column(
+                              children: [
+                                SizedBox(height: responsiveHeight(10)),
+                                // Padding(padding:EdgeInsets.only(left: 20,right: 20,top: 10,bottom: 10), child:validatedApiDropdown(
+                                //   hint: "Assign Vehicle",
+                                //   value: selectedVehicle,
+                                //   items:vehicleList,
+                                //   displayKey: "vehicleNo",
+                                //   icon: Icons.fire_truck_outlined,
+                                //   errorText: "Please select HCF type",
+                                //   onChanged: (v) => setState(() => selectedVehicle = v),
+                                // ))
+                                // ,
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 20,
+                                    right: 20,
+                                    top: 10,
+                                    bottom: 10,
+                                  ),
+                                  child: InkWell(
+                                    onTap: () {
+                                      _openVehicleBottomSheet(context, t);
+                                    },
+                                    child: IgnorePointer(
+                                      child: Container(
+                                        decoration: BoxDecoration(
+                                          borderRadius: BorderRadius.circular(
+                                            14,
+                                          ),
+                                          color: Colors.grey.shade200,
+                                        ),
 
-                        ),
-                          child:
-                      IconButton(onPressed: (){
-                        setState(() {
-                          _isSatellite = !_isSatellite; // Switch map type
-                        });
-                      }, icon: Icon(Icons.layers,size: 25,color: Colors.black54,))),
+                                        child: validatedApiDropdown(
+                                          color: Colors.grey.shade500,
+                                          hint: t.translate('assign_vehicle'),
+                                          value: selectedVehicle,
+                                          items: vehicleList,
+                                          displayKey: "vehicleNo",
+                                          icon: Icons.fire_truck_outlined,
+                                          errorText: "Please select HCF type",
+                                          onChanged:
+                                              (
+                                                v,
+                                              ) {}, // handled via bottom sheet
+                                        ),
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                Padding(
+                                  padding: const EdgeInsets.only(
+                                    left: 10,
+                                    right: 10,
+                                  ),
+                                  child: Row(
+                                    mainAxisAlignment:
+                                        MainAxisAlignment.spaceBetween,
+                                    children: [
+                                      Container(
+                                        margin: EdgeInsets.all(5),
+                                        padding: EdgeInsets.all(5),
+                                        height: 90,
+                                        width: 90,
+                                        decoration: BoxDecoration(
+                                          border: Border.all(
+                                            color: Colors.grey.shade500,
+                                          ),
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(10),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            Icon(
+                                              Icons.local_hospital_outlined,
+                                              color: kPrimaryColor,
+                                            ),
+                                            Text(
+                                              t.translate('total_hcf'),
+                                              style: TextStyle(fontSize: 10),
+                                            ),
+                                            Text(totalhcf!),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        margin: EdgeInsets.all(5),
+                                        padding: EdgeInsets.all(5),
+                                        height: 90,
+                                        // width:100,
+                                        decoration: BoxDecoration(
+                                          border: Border.all(
+                                            color: Colors.grey.shade500,
+                                          ),
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(10),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          children: [
+                                            Icon(
+                                              Icons.transfer_within_a_station,
+                                              color: kPrimaryColor,
+                                            ),
+                                            Text(
+                                              t.translate('total_weight'),
+                                              style: TextStyle(fontSize: 10),
+                                            ),
+                                            Text('${totalWeight!} Kg'),
+                                          ],
+                                        ),
+                                      ),
+                                      Container(
+                                        margin: EdgeInsets.all(5),
+                                        padding: EdgeInsets.all(5),
+                                        height: 90,
+                                        //  width:100,
+                                        decoration: BoxDecoration(
+                                          border: Border.all(
+                                            color: Colors.grey.shade500,
+                                          ),
+                                          borderRadius: BorderRadius.all(
+                                            Radius.circular(10),
+                                          ),
+                                        ),
+                                        child: Column(
+                                          crossAxisAlignment:
+                                              CrossAxisAlignment.center,
+                                          children: [
+                                            Icon(
+                                              Icons.shopping_bag_outlined,
+                                              color: kPrimaryColor,
+                                            ),
+                                            Text(
+                                              t.translate('total_bags'),
+                                              style: TextStyle(fontSize: 10),
+                                            ),
+                                            Text(totalBags!),
+                                          ],
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                ),
 
-                    ),])),),),
+                                SizedBox(
+                                  height: responsiveHeight(520),
+                                  child: SizedBox(
+                                    height: MediaQuery.of(context).size.height,
+                                    child: Padding(
+                                      padding: EdgeInsets.only(
+                                        top: 10,
+                                        left: 10,
+                                        right: 10,
+                                        bottom: 10,
+                                      ),
+                                      child: Stack(
+                                        children: [
+                                          GoogleMap(
+                                            onMapCreated:
+                                                (controller) =>
+                                                    _mapController = controller,
+                                            initialCameraPosition:
+                                                CameraPosition(
+                                                  target: _center!,
+                                                  zoom: 13,
+                                                ),
 
-                 Row(
-                   mainAxisAlignment: MainAxisAlignment.spaceAround,
-                     children: [
-                  //  ElevatedButton(
-                  //   onPressed: _clearPolygon,
-                  //   child: const Text("Clear"),
-                  // ),
-                  //  TextButton.icon(
-                  //   onPressed: () {
-                  //     setState(() {
-                  //       _isDrawing = !_isDrawing;
-                  //       if (!_isDrawing) {
-                  //         _filterMarkersWithinPolygon();
-                  //       } else {
-                  //         _polygonPoints.clear();
-                  //         _polygons.clear();
-                  //         _clearPolygon();
-                  //       }
-                  //     });
-                  //   },
-                  //   icon: Icon(_isDrawing ? Icons.check : Icons.edit),
-                  //   label: Text(_isDrawing ? "Done" : "Draw"),
-                  // ),
-                  TextButton.icon(
-                    onPressed: () {
-                      setState(() {
+                                            markers: _markers.union(
+                                              _polygonMarkers,
+                                            ),
+                                            polygons: _polygons,
+                                            mapType:
+                                                _isSatellite
+                                                    ? MapType.satellite
+                                                    : MapType.normal,
+                                            // circles: _circles,
+                                            onTap: _onMapTap,
 
-                        _clearPolygon();
-                        _polygonPoints.clear();
-                        _polygons.clear();
-                        _polygonMarkers.clear();
+                                            // onLongPress: (LatLng latLng) {
+                                            //   if (_isDrawing) {
+                                            //     setState(() {
+                                            //       _polygonPoints.add(latLng);
+                                            //       _polygons = {
+                                            //         Polygon(
+                                            //           polygonId: PolygonId('drawn_area'),
+                                            //           points: _polygonPoints,
+                                            //           strokeColor: Colors.blue,
+                                            //           fillColor: Colors.blue.withOpacity(0.2),
+                                            //           strokeWidth: 2,
+                                            //         ),
+                                            //       };
+                                            //     });
+                                            //   }
+                                            // },
+                                            myLocationEnabled: true,
+                                          ),
+                                          Positioned(
+                                            top: 60,
+                                            right: 10,
+                                            child: Container(
+                                              height: 40,
+                                              width: 40,
+                                              decoration: BoxDecoration(
+                                                color: kWhiteColor.withOpacity(
+                                                  0.7,
+                                                ),
+                                              ),
+                                              child: IconButton(
+                                                onPressed: () {
+                                                  setState(() {
+                                                    _isSatellite =
+                                                        !_isSatellite; // Switch map type
+                                                  });
+                                                },
+                                                icon: Icon(
+                                                  Icons.layers,
+                                                  size: 25,
+                                                  color: Colors.black54,
+                                                ),
+                                              ),
+                                            ),
+                                          ),
+                                        ],
+                                      ),
+                                    ),
+                                  ),
+                                ),
 
-                        _selectedHcfIds.clear();
-                        _selectedHcfs.clear();
+                                Row(
+                                  mainAxisAlignment:
+                                      MainAxisAlignment.spaceAround,
+                                  children: [
+                                    //  ElevatedButton(
+                                    //   onPressed: _clearPolygon,
+                                    //   child: const Text("Clear"),
+                                    // ),
+                                    //  TextButton.icon(
+                                    //   onPressed: () {
+                                    //     setState(() {
+                                    //       _isDrawing = !_isDrawing;
+                                    //       if (!_isDrawing) {
+                                    //         _filterMarkersWithinPolygon();
+                                    //       } else {
+                                    //         _polygonPoints.clear();
+                                    //         _polygons.clear();
+                                    //         _clearPolygon();
+                                    //       }
+                                    //     });
+                                    //   },
+                                    //   icon: Icon(_isDrawing ? Icons.check : Icons.edit),
+                                    //   label: Text(_isDrawing ? "Done" : "Draw"),
+                                    // ),
+                                    TextButton.icon(
+                                      onPressed: () {
+                                        setState(() {
+                                          _clearPolygon();
+                                          _polygonPoints.clear();
+                                          _polygons.clear();
+                                          _polygonMarkers.clear();
 
-                        totalhcf = '0';
-                        totalWeight = 0;
-                        totalBags = '0';
+                                          _selectedHcfIds.clear();
+                                          _selectedHcfs.clear();
 
-                        _markers = _allMarkers;
-                        _generateMarkers();
-                      });
-                    },
-                    icon: const Icon(Icons.refresh),
-                    label:  Text( t.translate('reset')),
+                                          totalhcf = '0';
+                                          totalWeight = 0;
+                                          totalBags = '0';
+
+                                          _markers = _allMarkers;
+                                          _generateMarkers();
+                                        });
+                                      },
+                                      icon: const Icon(Icons.refresh),
+                                      label: Text(t.translate('reset')),
+                                    ),
+                                    TextButton.icon(
+                                      onPressed: () {
+                                        _assignVehicleToSelectedHcfs(t);
+                                        // setState(() {
+                                        //   // _isDrawing = !_isDrawing;
+                                        //   // if (!_isDrawing) {
+                                        //   _polygonPoints.isNotEmpty?
+                                        //
+                                        //     _filterMarkersWithinPolygon():
+                                        //   ScaffoldMessenger.of(context).showSnackBar(
+                                        //     SnackBar(
+                                        //       content: Text('Please Select Hospitals'),
+                                        //
+                                        //     ),
+                                        //   );
+
+                                        // });
+                                      },
+                                      icon: const Icon(Icons.done),
+                                      label: Text(t.translate('ok')),
+                                    ),
+                                  ],
+                                ),
+                              ],
+                            ),
                   ),
-                   TextButton.icon(
-                     onPressed: () {
-                       _assignVehicleToSelectedHcfs(t);
-                       // setState(() {
-                       //   // _isDrawing = !_isDrawing;
-                       //   // if (!_isDrawing) {
-                       //   _polygonPoints.isNotEmpty?
-                       //
-                       //     _filterMarkersWithinPolygon():
-                       //   ScaffoldMessenger.of(context).showSnackBar(
-                       //     SnackBar(
-                       //       content: Text('Please Select Hospitals'),
-                       //
-                       //     ),
-                       //   );
-
-                      // });
-                     },
-                     icon: const Icon(Icons.done),
-                     label:  Text( t.translate('ok'),),
-                   )
-
-
-
-              ]),
-           ])),
+                ),
+              ],
+            ),
           ),
-        ],
+        ),
+        offlineChild: Offline(),
       ),
-      )), offlineChild: Offline()));
+    );
   }
-  void _openFilterBottomSheet(BuildContext contex,t) {
+
+  void _openFilterBottomSheet(BuildContext contex, t) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true,
@@ -867,7 +946,6 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-
                   /// 🔹 TRANSPARENT CLOSE ICON (ABOVE SHEET)
                   GestureDetector(
                     onTap: () => Navigator.pop(context),
@@ -881,33 +959,28 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
                         borderRadius: BorderRadius.all(Radius.circular(10)),
                         shape: BoxShape.rectangle,
                         boxShadow: [
-                          BoxShadow(
-                            color: Colors.black26,
-                            blurRadius: 6,
-                          ),
+                          BoxShadow(color: Colors.black26, blurRadius: 6),
                         ],
                       ),
-                      child: const Icon(
-                        Icons.close,
-                        color: kWhiteColor,
-                      ),
+                      child: const Icon(Icons.close, color: kWhiteColor),
                     ),
                   ),
 
                   /// 🔹 ACTUAL BOTTOM SHEET
                   AnimatedContainer(
                     duration: const Duration(milliseconds: 250),
-                    height: showCalendar?600:300,
+                    height: showCalendar ? 600 : 300,
                     padding: const EdgeInsets.fromLTRB(16, 20, 16, 20),
                     decoration: const BoxDecoration(
                       color: Colors.white,
-                      borderRadius:
-                      BorderRadius.vertical(top: Radius.circular(24)),
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(24),
+                      ),
                     ),
                     child: Column(
                       children: [
                         Text(
-                    t.translate('filters'),
+                          t.translate('filters'),
                           style: TextStyle(
                             fontSize: 18,
                             fontWeight: FontWeight.bold,
@@ -930,8 +1003,7 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
                         if (showCalendar) ...[
                           const SizedBox(height: 12),
                           CalendarDatePicker(
-                            initialDate:
-                            rangeStartDate ?? DateTime.now(),
+                            initialDate: rangeStartDate ?? DateTime.now(),
                             firstDate: DateTime(2020),
                             lastDate: DateTime.now(),
                             onDateChanged: (date) {
@@ -966,8 +1038,8 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.grey.shade300,
                                 ),
-                                child:  Text(
-            t.translate('cancel'),
+                                child: Text(
+                                  t.translate('cancel'),
                                   style: TextStyle(color: kBlackColor),
                                 ),
                               ),
@@ -975,25 +1047,35 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
                             const SizedBox(width: 12),
                             Expanded(
                               child: ElevatedButton(
-                                onPressed: rangeStartDate != null &&
-                                    rangeEndDate != null
-                                    ? () {
-                                  Navigator.pop(context);
-                                  debugPrint(
-                                      "Range: $rangeStartDate → $rangeEndDate");
-                                  setState(() {
-                                    showCalendar=false;
+                                onPressed:
+                                    rangeStartDate != null &&
+                                            rangeEndDate != null
+                                        ? () {
+                                          Navigator.pop(context);
+                                          debugPrint(
+                                            "Range: $rangeStartDate → $rangeEndDate",
+                                          );
+                                          setState(() {
+                                            showCalendar = false;
+                                          });
 
-                                  });
-
-                                  fetchNearbyHCFs(rangeStartDate.toString().substring(0,10),rangeEndDate.toString().substring(0,10));
-                                }
-                                    : null,
+                                          fetchNearbyHCFs(
+                                            rangeStartDate.toString().substring(
+                                              0,
+                                              10,
+                                            ),
+                                            rangeEndDate.toString().substring(
+                                              0,
+                                              10,
+                                            ),
+                                          );
+                                        }
+                                        : null,
                                 style: ElevatedButton.styleFrom(
                                   backgroundColor: Colors.deepOrange,
                                 ),
-                                child:  Text(
-            t.translate('search'),
+                                child: Text(
+                                  t.translate('search'),
                                   style: TextStyle(color: kWhiteColor),
                                 ),
                               ),
@@ -1026,24 +1108,23 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
           Expanded(
             child: Text(
               rangeStartDate == null
-                  ?  t.translate('custom_date')
+                  ? t.translate('custom_date')
                   : rangeEndDate == null
                   ? "From ${DateFormat('dd-MM-yyyy').format(rangeStartDate!)}"
                   : "${DateFormat('dd-MM-yyyy').format(rangeStartDate!)} - "
-                  "${DateFormat('dd-MM-yyyy').format(rangeEndDate!)}",
+                      "${DateFormat('dd-MM-yyyy').format(rangeEndDate!)}",
               style: const TextStyle(fontWeight: FontWeight.w600),
             ),
           ),
           Icon(
-            showCalendar
-                ? Icons.keyboard_arrow_up
-                : Icons.keyboard_arrow_down,
+            showCalendar ? Icons.keyboard_arrow_up : Icons.keyboard_arrow_down,
           ),
         ],
       ),
     );
   }
-  void _openVehicleBottomSheet(BuildContext context,t) {
+
+  void _openVehicleBottomSheet(BuildContext context, t) {
     showModalBottomSheet(
       context: context,
       isScrollControlled: true, // IMPORTANT
@@ -1070,7 +1151,7 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
               const SizedBox(height: 16),
 
               Text(
-                  t.translate('select_vehicle'),
+                t.translate('select_vehicle'),
                 style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
               ),
 
@@ -1088,9 +1169,13 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
                     return ListTile(
                       leading: const Icon(Icons.fire_truck_outlined),
                       title: Text(vehicle["vehicleNo"] ?? "-"),
-                      trailing: selectedVehicle == vehicle
-                          ? const Icon(Icons.check_circle, color: Colors.green)
-                          : null,
+                      trailing:
+                          selectedVehicle == vehicle
+                              ? const Icon(
+                                Icons.check_circle,
+                                color: Colors.green,
+                              )
+                              : null,
                       onTap: () {
                         setState(() {
                           selectedVehicle = vehicle;
@@ -1107,7 +1192,8 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
       },
     );
   }
-  void _assignVehicleToSelectedHcfs(t) async{
+
+  void _assignVehicleToSelectedHcfs(t) async {
     if (_polygonPoints.isNotEmpty) {
       _selectHcfsInsidePolygon(_polygonPoints);
     }
@@ -1122,67 +1208,22 @@ class _NearbyHCFScreenState extends State<NearbyHCFScreen> {
       _showError("Please select a vehicle");
       return;
     }
-    print('done');
-    print(_selectedHcfs);
-    // var body = await ApiService.buildWastePayloadList(
-    //   inputList: _selectedHcfs,
-    //   vehicle: selectedVehicle!,
-    // );
-    // print(body)
-    // ;
-    var bodyList = await ApiService.buildWastePayloadList(
-      inputList: _selectedHcfs,
-      vehicle: selectedVehicle!,
+    final assigned = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(
+        builder:
+            (_) => SelectedHcfsAssignScreen(
+              selectedHcfs: List<Map<String, dynamic>>.from(_selectedHcfs),
+              vehicle: selectedVehicle!,
+            ),
+      ),
     );
 
-    // for (var item in bodyList) {
-    //   await ApiService.AssignVehicle(context, item);
-    // }
-
-    if (bodyList.isNotEmpty) {
-      for (var item in bodyList) {
-        final value =await ApiService.AssignVehicle(context, item);
-
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text('${value['message']}')),
+    if (assigned == true && mounted) {
+      Navigator.pushReplacement(
+        context,
+        MaterialPageRoute(builder: (_) => NearbyHCFScreen()),
       );
-      if (value['status'] == 'Succes') {
-        showDialog(
-          context: context,
-          barrierDismissible: false,
-          builder: (_) => SuccessDialog(
-            buttonText: t.translate('save'),
-
-            message:t.translate('vehicle_assigned'),
-
-            onOk: () {
-              Navigator.pushReplacement(
-                context,
-                MaterialPageRoute(builder: (_) =>NearbyHCFScreen()),
-              );
-           //  Navigator.pop(context);
-
-
-
-              //launchUrl(Uri.parse('https://www.ecmpcb.in/registration'));
-            },
-          ),
-        );
-
-
-      }}}
-
-    // Both HCFs/polygon and vehicle selected → call API
-   // _hitAssignVehicleApi();
-
+    }
   }
-
-
-
-
-
-
-
-
-
 }

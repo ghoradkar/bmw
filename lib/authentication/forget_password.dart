@@ -76,7 +76,8 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const LoginScreen('yes')),
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          // MaterialPageRoute(builder: (_) => const LoginScreen('yes')),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -284,7 +285,7 @@ class _ResetPasswordScreenState extends State<ResetPasswordScreen> {
                                             ),
                                           );
                                         }
-                                        ;
+
                                       },
                                       // isLoading: isLoading,
                                       color: Colors.deepOrange,

@@ -50,12 +50,19 @@ class AuthService {
       final response = await http.post(uri, headers: headers, body: body);
 
       if (response.body.contains('Logout Successfully')) {
+        // Keep the user's language choice across logout; clear() would
+        // otherwise reset the app to the Marathi default on next launch.
+        final language = prefs.getString('language');
         await prefs.clear();
+        if (language != null) {
+          await prefs.setString('language', language);
+        }
 
         // Navigate to login screen
         Navigator.of(context).pushAndRemoveUntil(
           MaterialPageRoute(
-            builder: (BuildContext context) => LoginScreen('no'),
+            builder: (BuildContext context) => LoginScreen(),
+            // builder: (BuildContext context) => LoginScreen('no'),
           ),
               (Route route) => false,
         );

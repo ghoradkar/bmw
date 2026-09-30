@@ -114,7 +114,7 @@ class _SplashScreenState extends State<SplashScreen> {
     }
 
     // 1️⃣ Disposal User special case
-    if (userRole == 'Disposal User') {
+    if (isLoggedIn && userRole == 'Disposal User') {
       if (user != null && user['bulkDataSaveFlag'] == 'N') {
         if (!mounted) return;
         Navigator.of(context).popAndPushNamed(AppRoutes.waste_received_byvehicle);

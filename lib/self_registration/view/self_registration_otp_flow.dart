@@ -33,14 +33,14 @@ Future<void> openSelfRegistrationFlow(BuildContext context) async {
 
   final mobile = await showDialog<String>(
     context: context,
-    barrierDismissible: false,
+    barrierDismissible: true,
     builder: (_) => _capFontScale(const _MobileDialog()),
   );
   if (mobile == null || mobile.isEmpty || !context.mounted) return;
 
   final search = await showDialog<SelfRegistrationSearchResult>(
     context: context,
-    barrierDismissible: false,
+    barrierDismissible: true,
     builder: (_) => _capFontScale(_OtpDialog(mobile: mobile)),
   );
   if (search == null || !context.mounted) return;
@@ -49,7 +49,7 @@ Future<void> openSelfRegistrationFlow(BuildContext context) async {
   if (search.status == SelfRegistrationSearchStatus.alreadySubmitted) {
     await showDialog<void>(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder:
           (_) => _capFontScale(
             _InfoDialog(
@@ -69,7 +69,7 @@ Future<void> openSelfRegistrationFlow(BuildContext context) async {
   if (search.status == SelfRegistrationSearchStatus.error) {
     await showDialog<void>(
       context: context,
-      barrierDismissible: false,
+      barrierDismissible: true,
       builder:
           (_) => _capFontScale(
             _InfoDialog(

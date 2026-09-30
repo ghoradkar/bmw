@@ -32,6 +32,7 @@ class _UpdatePasswordState extends State<UpdatePassword> {
       TextEditingController();
 
   final _formKey = GlobalKey<FormState>();
+
   Future<void> resetPassword() async {
     try {
       final uri = Uri.parse('$masterurl$RESET_PASSWORD');
@@ -71,7 +72,8 @@ class _UpdatePasswordState extends State<UpdatePassword> {
 
         Navigator.pushReplacement(
           context,
-          MaterialPageRoute(builder: (_) => const LoginScreen('yes')),
+          MaterialPageRoute(builder: (_) => const LoginScreen()),
+          // MaterialPageRoute(builder: (_) => const LoginScreen('yes')),
         );
       } else {
         ScaffoldMessenger.of(context).showSnackBar(
@@ -86,20 +88,19 @@ class _UpdatePasswordState extends State<UpdatePassword> {
       );
     }
   }
+
   @override
   void initState() {
     super.initState();
     _loadUserInfo();
   }
+
   Future<void> _loadUserInfo() async {
     SharedPreferences prefs = await SharedPreferences.getInstance();
     setState(() {
       var username = prefs.getString('username') ?? 'Guest';
-      usernameController.text=username;
-      setState(() {
-
-      });
-
+      usernameController.text = username;
+      setState(() {});
     });
   }
 
@@ -133,105 +134,121 @@ class _UpdatePasswordState extends State<UpdatePassword> {
                 top: false,
                 child: SingleChildScrollView(
                   padding: const EdgeInsets.all(25),
-                  child: Form(key: _formKey, child: Column(children: [
-                    // Username
-                    AppTextfield(
-                      hintText: t.translate('username'),
-                      controller: usernameController,
-                      prefixIcon: Icons.person_outline,
-                      readOnly: true,
-                      validator: (value) =>
-                      value == null || value.isEmpty ? 'Enter username' : null,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Old Password
-                    AppTextfield(
-                      hintText: t.translate('old_password'),
-                      controller: oldPasswordController,
-                      obscureText: true,
-                      prefixIcon: Icons.password,
-                      validator: (value) =>
-                      value == null || value.isEmpty ? 'Enter old password' : null,
-                    ),
-                    const SizedBox(height: 16),
-
-                    // New Password
-                    AppTextfield(
-                      hintText: t.translate('new_password'),
-                      controller: newPasswordController,
-                      obscureText: true,
-                      prefixIcon: Icons.password,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Enter new password';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 16),
-
-                    // Confirm Password
-                    AppTextfield(
-                      hintText: t.translate('confirm_password'),
-                      controller: confirmPasswordController,
-                      obscureText: true,
-                      prefixIcon: Icons.password,
-                      validator: (value) {
-                        if (value == null || value.isEmpty) {
-                          return 'Confirm new password';
-                        } else if (value != newPasswordController.text) {
-                          return 'Passwords do not match';
-                        }
-                        return null;
-                      },
-                    ),
-                    const SizedBox(height: 24),
-
-                    // Buttons
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  child: Form(
+                    key: _formKey,
+                    child: Column(
                       children: [
+                        // Username
+                        AppTextfield(
+                          hintText: t.translate('username'),
+                          controller: usernameController,
+                          prefixIcon: Icons.person_outline,
+                          readOnly: true,
+                          validator:
+                              (value) =>
+                                  value == null || value.isEmpty
+                                      ? 'Enter username'
+                                      : null,
+                        ),
+                        const SizedBox(height: 16),
 
-                        //  const SizedBox(width: 16),
+                        // Old Password
+                        AppTextfield(
+                          hintText: t.translate('old_password'),
+                          controller: oldPasswordController,
+                          obscureText: true,
+                          prefixIcon: Icons.password,
+                          validator:
+                              (value) =>
+                                  value == null || value.isEmpty
+                                      ? 'Enter old password'
+                                      : null,
+                        ),
+                        const SizedBox(height: 16),
 
-                        SizedBox(
-                            width: 130,
-                            child:AppButton(
-                              text: t.translate('cancel'),
-                              onPressed: () {
-                                Navigator.pop(context);
-                              },
+                        // New Password
+                        AppTextfield(
+                          hintText: t.translate('new_password'),
+                          controller: newPasswordController,
+                          obscureText: true,
+                          prefixIcon: Icons.password,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Enter new password';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 16),
 
-                              color: Colors.grey.shade400,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 5, horizontal: 18),
-                            )), SizedBox(
-                            width: 170,
-                            child:AppButton(
-                              text: t.translate('update_password'),
-                              onPressed: () {
-                                if(_formKey.currentState!.validate()==true){
-                                  resetPassword();
-                                }
-                                else{
-                                  ScaffoldMessenger.of(context).showSnackBar(
-                                    const SnackBar(
-                                      content: Text('Password Reset Failed.'),
-                                    ),
-                                  );
-                                };
+                        // Confirm Password
+                        AppTextfield(
+                          hintText: t.translate('confirm_password'),
+                          controller: confirmPasswordController,
+                          obscureText: true,
+                          prefixIcon: Icons.password,
+                          validator: (value) {
+                            if (value == null || value.isEmpty) {
+                              return 'Confirm new password';
+                            } else if (value != newPasswordController.text) {
+                              return 'Passwords do not match';
+                            }
+                            return null;
+                          },
+                        ),
+                        const SizedBox(height: 24),
 
-                              },
-                              // isLoading: isLoading,
-                              color: Colors.deepOrange,
-                              padding: const EdgeInsets.symmetric(
-                                  vertical: 5, horizontal: 18),
-                            )),
+                        // Buttons
+                        Row(
+                          mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                          children: [
+                            //  const SizedBox(width: 16),
+                            SizedBox(
+                              width: 130,
+                              child: AppButton(
+                                text: t.translate('cancel'),
+                                onPressed: () {
+                                  Navigator.pop(context);
+                                },
+
+                                color: Colors.grey.shade400,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 5,
+                                  horizontal: 18,
+                                ),
+                              ),
+                            ),
+                            SizedBox(
+                              width: 170,
+                              child: AppButton(
+                                text: t.translate('update_password'),
+                                onPressed: () {
+                                  if (_formKey.currentState!.validate() ==
+                                      true) {
+                                    resetPassword();
+                                  } else {
+                                    ScaffoldMessenger.of(context).showSnackBar(
+                                      const SnackBar(
+                                        content: Text('Password Reset Failed.'),
+                                      ),
+                                    );
+                                  }
+                                  ;
+                                },
+                                // isLoading: isLoading,
+                                color: Colors.deepOrange,
+                                padding: const EdgeInsets.symmetric(
+                                  vertical: 5,
+                                  horizontal: 18,
+                                ),
+                              ),
+                            ),
+                          ],
+                        ),
+                        SizedBox(height: 30),
                       ],
                     ),
-                    SizedBox(height: 30,),
-                  ])),
+                  ),
                 ),
               ),
             ),

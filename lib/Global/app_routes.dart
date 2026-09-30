@@ -64,7 +64,8 @@ class AppRoutes {
 
         case loginScreen:
           return MaterialPageRoute(
-            builder: (_) => LoginScreen('no'),
+            builder: (_) => LoginScreen(),
+            // builder: (_) => LoginScreen('no'),
           );
         case forgot_password:
           return MaterialPageRoute(

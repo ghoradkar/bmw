@@ -147,14 +147,17 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
     for (var item in widget.tableData) {
       String color = item['color'];
       double quantity = double.tryParse(item['quantity'].toString()) ?? 0;
+      final key = '${color}_${item['wasteGeneratedById']}';
 
-      if (tempMap.containsKey(color)) {
-        tempMap[color]!['quantity'] += quantity;
-        tempMap[color]!['bags'] += 1;
+      if (tempMap.containsKey(key)) {
+        tempMap[key]!['quantity'] += quantity;
+        tempMap[key]!['bags'] += 1;
       } else {
-        tempMap[color] = {
+        tempMap[key] = {
           'color': color,
           'category': item['category'],
+          'wasteGeneratedByNameEn': item['wasteGeneratedByNameEn'],
+          'wasteGeneratedByNameRg': item['wasteGeneratedByNameRg'],
           'quantity': quantity,
           'bags': 1,
         };
@@ -349,6 +352,7 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
 
 
   Widget _buildDataTable(t) {
+    final languageCode = context.watch<LanguageProvider>().locale.languageCode;
     return  Table(
       border: TableBorder.all(
         color: Colors.grey.shade300,
@@ -358,9 +362,10 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
       ),
       columnWidths: const {
         0: FlexColumnWidth(1),
-        1: FlexColumnWidth(3),
-        2: FlexColumnWidth(3),
-        3: FlexColumnWidth(2),
+        1: FlexColumnWidth(2.5),
+        2: FlexColumnWidth(2.5),
+        3: FlexColumnWidth(1.8),
+        4: FlexColumnWidth(2.5),
       },
       children: [
         TableRow(
@@ -415,6 +420,18 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
                   color: Colors.white,
                   fontWeight: FontWeight.bold,
                 ),
+              ),
+            ),
+            Padding(
+              padding: const EdgeInsets.all(8),
+              child: Text(
+                t.translate('waste_generated_by'),
+                style: const TextStyle(
+                  color: Colors.white,
+                  fontWeight: FontWeight.bold,
+                  fontSize: 11,
+                ),
+                textAlign: TextAlign.center,
               ),
             ),
           ],
@@ -557,6 +574,21 @@ class _TableScreenState extends State<BioWasteSummaryTable> {
                     groupedData[i]['bags'] =
                         int.tryParse(val) ?? 0;
                   },
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.all(8),
+                child: Text(
+                  (languageCode == 'mr'
+                              ? groupedData[i]['wasteGeneratedByNameRg']
+                              : groupedData[i]['wasteGeneratedByNameEn'])
+                          ?.toString() ??
+                      '-',
+                  textAlign: TextAlign.center,
+                  style: const TextStyle(
+                    fontWeight: FontWeight.bold,
+                    fontSize: 12,
+                  ),
                 ),
               ),
             ],

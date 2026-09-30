@@ -9,11 +9,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../Global/url.dart';
 import '../authentication/logout.dart';
 
-
-
-
 class ApiService {
-
   // static Future<List<Map<String, dynamic>>> buildWastePayloadList({
   //   required List<dynamic> inputList,
   //   required Map<String,dynamic> vehicle
@@ -43,33 +39,30 @@ class ApiService {
   static Future<List<Map<String, dynamic>>> buildWastePayloadList({
     required List<dynamic> inputList,
     required Map<String, dynamic> vehicle,
+    String? driverName,
   }) async {
-
     final prefs = await SharedPreferences.getInstance();
     final userid = prefs.getString('UserId');
+    final driver = driverName?.trim();
 
     return inputList.map((item) {
-
       /// ✅ Handle date safely
       String formattedDate = "";
 
-      final String? dateStr =
-          item['wasteQntyDate'] ?? item['wasteQtyDate'];
+      final String? dateStr = item['wasteQntyDate'] ?? item['wasteQtyDate'];
 
       if (dateStr != null) {
         if (dateStr.contains("-")) {
           // Format: yyyy-MM-dd
           final parts = dateStr.split("-");
           if (parts.length == 3) {
-            formattedDate =
-            "${parts[2]}/${parts[1]}/${parts[0]}";
+            formattedDate = "${parts[2]}/${parts[1]}/${parts[0]}";
           }
         } else if (dateStr.contains("/")) {
           // Format: yyyy/MM/dd
           final parts = dateStr.split("/");
           if (parts.length == 3) {
-            formattedDate =
-            "${parts[2]}/${parts[1]}/${parts[0]}";
+            formattedDate = "${parts[2]}/${parts[1]}/${parts[0]}";
           }
         }
       }
@@ -81,79 +74,71 @@ class ApiService {
         "vehicleNo": vehicle['vehicleNo'],
         "userId": userid != null ? int.tryParse(userid) : null,
         "chassisNo": vehicle['vehicleChassis'],
+        if (driver != null && driver.isNotEmpty) "driverName": driver,
         //"vehicleAssignDate": formattedDate,
       };
-
     }).toList();
   }
 
-
-
-
   // Submit form data
-  static Future<List> Get_cbwtf_data(BuildContext context,wasteId) async {
+  static Future<List> Get_cbwtf_data(BuildContext context, wasteId) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('Token') ?? '';
-    final response = await http.get(
-      Uri.parse('${baseurl}${GET_BIO_WASTE_DETAILS}$wasteId'),
+    final response = await http
+        .get(
+          Uri.parse('${baseurl}${GET_BIO_WASTE_DETAILS}$wasteId'),
 
-       headers: {
-    'Authorization': 'Bearer $token',
-    'Content-Type': 'application/json',
-    },
-    ).timeout(const Duration(seconds: 15));
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+        )
+        .timeout(const Duration(seconds: 15));
     print('${baseurl}${GET_BIO_WASTE_DATA}$wasteId');
     print(response.body);
 
-
     if (response.statusCode != 200) {
-      if (response.statusCode==401){
+      if (response.statusCode == 401) {
         final authService = AuthService();
         authService.logout(context);
-
       }
       throw Exception('Failed to submit form: ${response.statusCode}');
-
     }
-    Map<String,dynamic> data=jsonDecode(response.body);
+    Map<String, dynamic> data = jsonDecode(response.body);
 
-
-    return data['data'] ;
+    return data['data'];
   }
 
-  static Future<Map<String,dynamic>> AssignVehicle(BuildContext context,body) async {
-
-
-
+  static Future<Map<String, dynamic>> AssignVehicle(
+    BuildContext context,
+    body,
+  ) async {
     final prefs = await SharedPreferences.getInstance();
     final token = prefs.getString('Token') ?? '';
-    final response = await http.post(
-      Uri.parse('${baseurl}${CBWTF_ASSIGN_VEHICLE}'),
+    final response = await http
+        .post(
+          Uri.parse('${baseurl}${CBWTF_ASSIGN_VEHICLE}'),
 
-      headers: {
-        'Authorization': 'Bearer $token',
-        'Content-Type': 'application/json',
-      },
-      body: jsonEncode(body)
-    ).timeout(const Duration(seconds: 15));
+          headers: {
+            'Authorization': 'Bearer $token',
+            'Content-Type': 'application/json',
+          },
+          body: jsonEncode(body),
+        )
+        .timeout(const Duration(seconds: 15));
     print(jsonEncode(body));
     print('${baseurl}${CBWTF_ASSIGN_VEHICLE}');
     print(response.body);
 
-
     if (response.statusCode != 200) {
-      if (response.statusCode==401){
+      if (response.statusCode == 401) {
         final authService = AuthService();
         authService.logout(context);
-
       }
       throw Exception('Failed to submit form: ${response.statusCode}');
-
     }
-    Map<String,dynamic> data=jsonDecode(response.body);
+    Map<String, dynamic> data = jsonDecode(response.body);
 
-
-    return data ;
+    return data;
   }
-
 }

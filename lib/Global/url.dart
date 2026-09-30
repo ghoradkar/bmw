@@ -39,6 +39,7 @@ String ADD_UPDATE_WASTE='save-waste';
 String GET_BIO_WASTE_DATA_FOR_HCF='get-bio-waste-data-forhcf?';
 String GENERATE_BARCODE='generate-barcode';
 String CATEGORY_LOOKUP='colourTypeDropdown?lookupCode=CCD';
+String WASTE_GENERATED_BY_LOOKUP='lookupdet/code/WGA';
 String FILTER='get-bio-waste-data-forhcf-byDate';
 String MULTIPLE_BARCODE='generate-all-barcode';
 String GENERATE_QRCODE='generate-qrCode';
